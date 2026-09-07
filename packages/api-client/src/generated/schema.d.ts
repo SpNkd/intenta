@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/recover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recover With Code */
+        post: operations["recoverWithCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/experiment/next": {
         parameters: {
             query?: never;
@@ -323,6 +340,11 @@ export interface components {
             /** Code */
             code: string;
         };
+        /** RecoveryLoginRequest */
+        RecoveryLoginRequest: {
+            /** Code */
+            code: string;
+        };
         /** TechniqueSnapshot */
         TechniqueSnapshot: {
             /** Instruction */
@@ -392,6 +414,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CsrfResponse"];
+                };
+            };
+        };
+    };
+    recoverWithCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecoveryLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

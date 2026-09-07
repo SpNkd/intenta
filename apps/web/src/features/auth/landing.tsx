@@ -73,9 +73,8 @@ export function Landing() {
         </button>
         <button
           type="button"
-          disabled
-          title={content.recoverUnavailable}
-          className="min-h-12 w-full rounded-full px-6 text-sm font-medium text-[var(--muted)] opacity-65"
+          onClick={() => router.push("/recover")}
+          className="min-h-12 w-full rounded-full px-6 text-sm font-medium text-[var(--muted)]"
         >
           {content.recoverAction}
         </button>

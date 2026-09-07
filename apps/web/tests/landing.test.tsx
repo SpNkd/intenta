@@ -38,10 +38,11 @@ describe("Landing", () => {
     });
   });
 
-  it("keeps recovery visible but unavailable in this slice", () => {
+  it("opens recovery from the landing CTA", () => {
     render(<Landing />);
-    expect(
+    fireEvent.click(
       screen.getByRole("button", { name: "У меня уже есть код" }),
-    ).toBeDisabled();
+    );
+    expect(mocks.push).toHaveBeenCalledWith("/recover");
   });
 });

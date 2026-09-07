@@ -20,8 +20,9 @@ async function checkAndCapture(
   });
 }
 
-test("landing through onboarding, draft, paper and Technique", async ({
+test("landing through recovery login returns to the same active Intention", async ({
   page,
+  browser,
 }) => {
   await page.goto("/");
   await checkAndCapture(page, "01-landing");
@@ -66,6 +67,7 @@ test("landing through onboarding, draft, paper and Technique", async ({
   await page.getByRole("button", { name: "Создать Интенту" }).click();
   await expect(page).toHaveURL(/\/recovery$/);
   await page.getByRole("button", { name: "Показать код" }).click();
+  const recoveryCode = await page.locator("code").innerText();
   await expect(
     page.getByRole("button", { name: "Я сохранил код" }),
   ).toBeVisible();
@@ -78,6 +80,44 @@ test("landing through onboarding, draft, paper and Technique", async ({
   await expect(page).toHaveURL(/\/home$/);
   await page.goto("/");
   await expect(page).toHaveURL(/\/home$/);
+  const recoveredContext = await browser.newContext();
+  const recoveredPage = await recoveredContext.newPage();
+  await recoveredPage.goto("/recover");
+  await recoveredPage.getByLabel("Recovery code").fill(recoveryCode);
+  await recoveredPage.getByRole("button", { name: "Продолжить" }).click();
+  await expect(recoveredPage).toHaveURL(/\/home$/);
+  await expect(
+    recoveredPage.getByText("Куплю себе хорошие наушники."),
+  ).toBeVisible();
+  await recoveredPage.reload();
+  await expect(recoveredPage).toHaveURL(/\/home$/);
+  await recoveredContext.close();
+
+  const repeatedContext = await browser.newContext();
+  const repeatedPage = await repeatedContext.newPage();
+  await repeatedPage.goto("/recover");
+  await repeatedPage.getByLabel("Recovery code").fill(recoveryCode);
+  await repeatedPage.getByRole("button", { name: "Продолжить" }).click();
+  await expect(repeatedPage).toHaveURL(/\/home$/);
+  await expect(
+    repeatedPage.getByText("Куплю себе хорошие наушники."),
+  ).toBeVisible();
+  await repeatedContext.close();
+});
+
+test("invalid recovery code gets a neutral error", async ({ page }) => {
+  await page.goto("/recover");
+  await page
+    .getByLabel("Recovery code")
+    .fill(
+      "INTENTA-0000000000000000-000000000000000000000000000000000000000000000000",
+    );
+  await page.getByRole("button", { name: "Продолжить" }).click();
+  await expect(
+    page.getByText(
+      "Не получилось восстановить доступ. Проверь код и попробуй ещё раз.",
+    ),
+  ).toBeVisible();
 });
 
 test("an existing session is reused on landing revisit", async ({ page }) => {

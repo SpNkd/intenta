@@ -7,3 +7,7 @@ class RecoveryCredentialResponse(BaseModel):
 
 class RecoveryAcknowledgementResponse(BaseModel):
     acknowledged: bool
+
+
+class RecoveryLoginRequest(BaseModel):
+    code: str

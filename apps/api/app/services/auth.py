@@ -52,6 +52,23 @@ async def create_anonymous_session(
     return AuthContext(user=user, session=session), session_token, csrf_token
 
 
+async def create_session_for_user(
+    db: AsyncSession, user: AnonymousUser, *, session_ttl_days: int
+) -> tuple[str, str]:
+    session_token = generate_token()
+    csrf_token = generate_token()
+    db.add(
+        Session(
+            user_id=user.id,
+            token_hash=hash_token(session_token),
+            csrf_token_hash=hash_token(csrf_token),
+            expires_at=datetime.now(UTC) + timedelta(days=session_ttl_days),
+        )
+    )
+    await db.flush()
+    return session_token, csrf_token
+
+
 async def rotate_csrf_token(db: AsyncSession, context: AuthContext) -> str:
     csrf_token = generate_token()
     context.session.csrf_token_hash = hash_token(csrf_token)

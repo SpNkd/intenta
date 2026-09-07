@@ -5,6 +5,7 @@ from app.api.v1.routes.experiment import router as experiment_router
 from app.api.v1.routes.health import router as health_router
 from app.api.v1.routes.intentions import router as intentions_router
 from app.api.v1.routes.me import router as me_router
+from app.api.v1.routes.recovery import auth_router as recovery_auth_router
 from app.api.v1.routes.recovery import router as recovery_router
 
 router = APIRouter()
@@ -14,3 +15,4 @@ router.include_router(me_router)
 router.include_router(experiment_router)
 router.include_router(intentions_router)
 router.include_router(recovery_router)
+router.include_router(recovery_auth_router)

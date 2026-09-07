@@ -262,6 +262,19 @@
         "title": "RecoveryCredentialResponse",
         "type": "object"
       },
+      "RecoveryLoginRequest": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "RecoveryLoginRequest",
+        "type": "object"
+      },
       "TechniqueSnapshot": {
         "properties": {
           "instruction": {
@@ -378,6 +391,45 @@
         "summary": "Get Csrf Token",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/recover": {
+      "post": {
+        "operationId": "recoverWithCode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recover With Code",
+        "tags": [
+          "recovery"
         ]
       }
     },
