@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "locale": "ru",
+  "namespace": "techniques",
+  "data": [
+    {
+      "key": "handwritten_pause",
+      "version": 1,
+      "title": "Остановись на минуту",
+      "instruction": "Прочитай написанное один раз. Заметь, что выбор уже сформулирован. Затем отложи лист и возвращайся к обычным делам.",
+      "category": "physical_writing",
+      "active": true
+    },
+    {
+      "key": "personal_detail",
+      "version": 1,
+      "title": "Одна деталь",
+      "instruction": "Назови про себя одну конкретную деталь, почему ты выбрал это именно для себя. Ничего исправлять или дописывать не нужно.",
+      "category": "reflection",
+      "active": true
+    },
+    {
+      "key": "observation_mode",
+      "version": 1,
+      "title": "Наблюдение без поиска",
+      "instruction": "Убери лист туда, где он останется. Не нужно специально искать подтверждения. Вернись, если захочешь записать то, что произошло.",
+      "category": "observation",
+      "active": true
+    }
+  ]
+}

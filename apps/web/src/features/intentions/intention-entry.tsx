@@ -1,0 +1,157 @@
+"use client";
+
+import { api } from "@intenta/api-client";
+import { useRouter } from "next/navigation";
+import { FormEvent, useEffect, useState } from "react";
+
+import { content } from "../../lib/content";
+
+function amountLabel(amountMinor: number, currency: string) {
+  const value = new Intl.NumberFormat("ru-RU").format(amountMinor / 100);
+  return `${value} ${currency === "RUB" ? "₽" : currency}`;
+}
+
+export function IntentionEntry() {
+  const router = useRouter();
+  const [step, setStep] = useState<{
+    amount_minor: number;
+    currency: string;
+  } | null>(null);
+  const [draft, setDraft] = useState<{
+    id: string;
+    intention_text_raw: string;
+  } | null>(null);
+  const [csrf, setCsrf] = useState("");
+  const [text, setText] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all([
+      api.GET("/api/v1/me"),
+      api.GET("/api/v1/auth/csrf"),
+      api.GET("/api/v1/intentions/current"),
+      api.GET("/api/v1/experiment/next"),
+    ]).then(([me, csrfResponse, current, next]) => {
+      if (!active) return;
+      if (!me.data) return router.replace("/");
+      if (!me.data.onboarding_completed) return router.replace("/onboarding");
+      if (csrfResponse.data) setCsrf(csrfResponse.data.csrf_token);
+      if (current.data) {
+        setDraft(current.data);
+        setText(current.data.intention_text_raw);
+        setStep(current.data);
+        setShowForm(true);
+      } else if (next.data) {
+        setStep(next.data);
+      } else {
+        setError(content.requestError);
+      }
+      setLoading(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [router]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    const options = {
+      body: { intention_text_raw: text },
+      headers: { "X-CSRF-Token": csrf },
+    };
+    const result = draft
+      ? await api.PATCH("/api/v1/intentions/{intention_id}", {
+          params: { path: { intention_id: draft.id } },
+          ...options,
+        })
+      : await api.POST("/api/v1/intentions", options);
+    if (!result.data) {
+      setError(content.requestError);
+      setSaving(false);
+      return;
+    }
+    router.push("/intention/paper");
+  }
+
+  if (loading || !step) {
+    return (
+      <main className="grid min-h-dvh place-items-center text-sm text-[var(--muted)]">
+        {content.loading}
+      </main>
+    );
+  }
+
+  if (!showForm) {
+    return (
+      <main className="mx-auto flex min-h-dvh max-w-md flex-col px-5 py-8 sm:px-7">
+        <p className="text-xs font-semibold tracking-[0.28em] text-[var(--muted)]">
+          {content.appName}
+        </p>
+        <section className="flex flex-1 flex-col justify-center">
+          <p className="text-sm text-[var(--muted)]">
+            {content.intentions.amount_intro}
+          </p>
+          <h1 className="mt-4 text-[clamp(4.5rem,23vw,7rem)] leading-none font-medium tracking-[-0.07em]">
+            {amountLabel(step.amount_minor, step.currency)}
+          </h1>
+        </section>
+        <button
+          className="min-h-14 rounded-full bg-[var(--foreground)] text-white"
+          onClick={() => setShowForm(true)}
+        >
+          {content.intentions.amount_action}
+        </button>
+      </main>
+    );
+  }
+
+  return (
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col px-5 py-8 sm:px-7">
+      <p className="text-sm text-[var(--muted)]">
+        {amountLabel(step.amount_minor, step.currency)}
+      </p>
+      <form
+        className="flex flex-1 flex-col"
+        onSubmit={(event) => void submit(event)}
+      >
+        <h1 className="mt-10 text-[clamp(2rem,9vw,3rem)] leading-[1.08] font-medium tracking-[-0.04em]">
+          {content.intentions.question}
+        </h1>
+        <label
+          className="mt-10 text-sm text-[var(--muted)]"
+          htmlFor="intention-text"
+        >
+          {content.intentions.input_label}
+        </label>
+        <textarea
+          id="intention-text"
+          required
+          minLength={3}
+          maxLength={500}
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          placeholder={content.intentions.input_placeholder}
+          className="mt-2 min-h-36 resize-y rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-lg leading-7 outline-none focus:border-[var(--foreground)]"
+        />
+        <div className="flex-1" />
+        {error ? (
+          <p role="alert" className="mb-3 text-sm text-[var(--error)]">
+            {error}
+          </p>
+        ) : null}
+        <button
+          disabled={saving || !csrf}
+          className="mt-8 min-h-14 rounded-full bg-[var(--foreground)] text-white disabled:opacity-60"
+        >
+          {saving ? content.loading : content.intentions.save_draft_action}
+        </button>
+      </form>
+    </main>
+  );
+}

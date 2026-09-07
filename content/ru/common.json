@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "locale": "ru",
+  "namespace": "common",
+  "data": {
+    "app_name": "ИНТЕНТА",
+    "tagline": "Намерение — начало того, чего ещё нет.",
+    "try_action": "Попробовать",
+    "recover_action": "У меня уже есть код",
+    "recover_unavailable": "Восстановление доступа появится на следующем этапе.",
+    "request_error": "Не получилось продолжить. Попробуй ещё раз.",
+    "back_action": "Назад",
+    "next_action": "Дальше",
+    "start_action": "Начать",
+    "loading": "Загрузка…",
+    "ready_title": "Можно начинать",
+    "ready_description": "Знакомство завершено. Следующий шаг — создание первой Интенты — появится в отдельном этапе.",
+    "return_action": "Вернуться"
+  }
+}

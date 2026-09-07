@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "locale": "ru",
+  "namespace": "onboarding",
+  "data": [
+    {
+      "key": "experiment_amount",
+      "title": "Интента предложит тебе сумму для небольшого эксперимента."
+    },
+    {
+      "key": "personal_choice",
+      "title": "Заранее решишь, на что потратишь её именно для себя, если она неожиданно появится."
+    },
+    {
+      "key": "handwritten_intention",
+      "title": "Запишешь своё намерение от руки."
+    },
+    {
+      "key": "observe",
+      "title": "А потом просто посмотришь, что произойдёт."
+    }
+  ]
+}

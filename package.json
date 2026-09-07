@@ -1,0 +1,22 @@
+{
+  "name": "intenta",
+  "private": true,
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=20.20.0"
+  },
+  "scripts": {
+    "build": "pnpm --filter @intenta/api-client build && pnpm --filter @intenta/web build",
+    "content:validate": "node scripts/run-uv.mjs --directory apps/api run python scripts/validate_content.py",
+    "dev:api": "node scripts/run-uv.mjs --directory apps/api run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
+    "dev:web": "pnpm --filter @intenta/web dev",
+    "format:check": "pnpm --filter @intenta/web format:check && node scripts/run-uv.mjs --directory apps/api run ruff format --check .",
+    "generate:api": "node scripts/run-uv.mjs --directory apps/api run python scripts/export_openapi.py && pnpm --filter @intenta/api-client generate",
+    "lint": "pnpm --filter @intenta/web lint && node scripts/run-uv.mjs --directory apps/api run ruff check .",
+    "test": "pnpm --filter @intenta/web test && node scripts/run-uv.mjs --directory apps/api run pytest",
+    "test:e2e": "pnpm --filter @intenta/web test:e2e",
+    "test:api": "node scripts/run-uv.mjs --directory apps/api run pytest",
+    "test:web": "pnpm --filter @intenta/web test",
+    "typecheck": "pnpm --filter @intenta/api-client typecheck && pnpm --filter @intenta/web typecheck && node scripts/run-uv.mjs --directory apps/api run mypy app scripts"
+  }
+}

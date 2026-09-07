@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "locale": "ru",
+  "namespace": "intentions",
+  "data": {
+    "amount_intro": "Первая сумма",
+    "amount_action": "Продолжить",
+    "question": "Если эти деньги неожиданно появятся в твоей жизни — на что именно ты потратишь их для себя?",
+    "input_label": "Моё намерение",
+    "input_placeholder": "Например, куплю себе хорошие наушники",
+    "save_draft_action": "Сохранить намерение",
+    "paper_title": "Теперь запиши это",
+    "paper_instruction": "Возьми обычный лист бумаги и ручку. Перепиши этот текст от руки.",
+    "paper_written_action": "Я записал",
+    "edit_action": "Исправить намерение",
+    "technique_label": "Техника",
+    "statement_template_key": "intention_statement",
+    "statement_template_version": "1",
+    "statement_template": "Если в моей жизни неожиданно появятся {amount},\nя потрачу их на то, что выбрал для себя:\n\n«{intention_text}»\n\nЭто моё намерение."
+  }
+}
