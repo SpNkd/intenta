@@ -69,6 +69,12 @@ export function ActiveHome() {
       >
         {content.activation.finish_action}
       </button>
+      <button
+        onClick={() => router.push("/recovery")}
+        className="mt-3 min-h-12 text-sm text-[var(--muted)]"
+      >
+        {content.activation.manage_recovery_action}
+      </button>
     </main>
   );
 }

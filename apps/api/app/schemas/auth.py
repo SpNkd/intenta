@@ -11,6 +11,8 @@ class MeResponse(BaseModel):
     created_at: datetime
     onboarding_completed: bool
     flow_state: str
+    credential_exists: bool
+    recovery_code_acknowledged: bool
 
 
 class AnonymousSessionResponse(BaseModel):

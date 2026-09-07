@@ -10,18 +10,25 @@ export function RecoveryScreen() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [credentialExists, setCredentialExists] = useState(false);
   useEffect(() => {
     void Promise.all([
       api.GET("/api/v1/me"),
       api.GET("/api/v1/auth/csrf"),
     ]).then(([me, token]) => {
       if (!me.data || me.data.flow_state !== "active") router.replace("/");
-      else if (token.data) setCsrf(token.data.csrf_token);
+      else {
+        setCredentialExists(me.data.credential_exists);
+        if (token.data) setCsrf(token.data.csrf_token);
+      }
     });
   }, [router]);
   async function issue() {
     setBusy(true);
-    const { data } = await api.POST("/api/v1/me/recovery-credential", {
+    const path = credentialExists
+      ? "/api/v1/me/recovery-credential/replacement"
+      : "/api/v1/me/recovery-credential";
+    const { data } = await api.POST(path, {
       headers: { "X-CSRF-Token": csrf },
     });
     if (!data) {
@@ -72,12 +79,21 @@ export function RecoveryScreen() {
           <p role="alert" className="mt-5 text-sm text-[var(--error)]">
             {error}
           </p>
+          {credentialExists ? (
+            <p className="mt-5 text-base leading-7 text-[var(--muted)]">
+              {content.activation.replacement_warning}
+            </p>
+          ) : null}
           <button
             disabled={!csrf || busy}
             onClick={() => void issue()}
             className="mt-10 min-h-14 rounded-full bg-[var(--foreground)] text-white disabled:opacity-60"
           >
-            {busy ? content.loading : content.activation.issue_code_action}
+            {busy
+              ? content.loading
+              : credentialExists
+                ? content.activation.replacement_action
+                : content.activation.issue_code_action}
           </button>
         </>
       )}

@@ -213,6 +213,10 @@
             "title": "Created At",
             "type": "string"
           },
+          "credential_exists": {
+            "title": "Credential Exists",
+            "type": "boolean"
+          },
           "flow_state": {
             "title": "Flow State",
             "type": "string"
@@ -225,13 +229,19 @@
           "onboarding_completed": {
             "title": "Onboarding Completed",
             "type": "boolean"
+          },
+          "recovery_code_acknowledged": {
+            "title": "Recovery Code Acknowledged",
+            "type": "boolean"
           }
         },
         "required": [
           "id",
           "created_at",
           "onboarding_completed",
-          "flow_state"
+          "flow_state",
+          "credential_exists",
+          "recovery_code_acknowledged"
         ],
         "title": "MeResponse",
         "type": "object"
@@ -903,6 +913,55 @@
           }
         },
         "summary": "Issue Recovery Credential",
+        "tags": [
+          "recovery"
+        ]
+      }
+    },
+    "/api/v1/me/recovery-credential/replacement": {
+      "post": {
+        "operationId": "replaceRecoveryCredential",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryCredentialResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Replace Recovery Credential",
         "tags": [
           "recovery"
         ]

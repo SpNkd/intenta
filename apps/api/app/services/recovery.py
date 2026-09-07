@@ -34,6 +34,22 @@ async def issue_credential(db: AsyncSession, user_id: object) -> str:
     return f"INTENTA-{public_id}-{secret}"
 
 
+async def replace_credential(db: AsyncSession, user_id: object) -> str:
+    credential = await db.scalar(
+        select(RecoveryCredential)
+        .where(
+            RecoveryCredential.user_id == user_id,
+            RecoveryCredential.disabled_at.is_(None),
+        )
+        .with_for_update()
+    )
+    if credential is None:
+        raise ValueError("no active recovery credential exists")
+    credential.disabled_at = datetime.now(UTC)
+    await db.flush()
+    return await issue_credential(db, user_id)
+
+
 def parse_code(code: str) -> tuple[str, str] | None:
     match = re.fullmatch(r"INTENTA-([a-f0-9]{16})-([a-f0-9]{48})", code.strip())
     return (match.group(1), match.group(2)) if match else None

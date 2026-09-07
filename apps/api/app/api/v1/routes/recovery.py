@@ -12,11 +12,12 @@ from app.schemas.recovery import (
     RecoveryLoginRequest,
 )
 from app.services.auth import create_session_for_user
-from app.services.recovery import issue_credential, verify_credential
+from app.services.recovery import issue_credential, replace_credential, verify_credential
 
 router = APIRouter(prefix="/me", tags=["recovery"])
 auth_router = APIRouter(prefix="/auth", tags=["recovery"])
 recovery_rate_limiter = FixedWindowRateLimiter(10)
+credential_issuance_rate_limiter = FixedWindowRateLimiter(5)
 
 
 @router.post(
@@ -25,12 +26,35 @@ recovery_rate_limiter = FixedWindowRateLimiter(10)
     operation_id="issueRecoveryCredential",
 )
 async def issue_recovery_credential(
-    db: Database, auth: CsrfProtectedAuth
+    request: Request, db: Database, auth: CsrfProtectedAuth
 ) -> RecoveryCredentialResponse:
+    key = request.client.host if request.client else "unknown"
+    if not await credential_issuance_rate_limiter.allow(key):
+        raise HTTPException(status_code=429, detail="Too many requests")
     try:
         code = await issue_credential(db, auth.user.id)
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    await db.commit()
+    return RecoveryCredentialResponse(code=code)
+
+
+@router.post(
+    "/recovery-credential/replacement",
+    response_model=RecoveryCredentialResponse,
+    operation_id="replaceRecoveryCredential",
+)
+async def replace_recovery_credential(
+    request: Request, db: Database, auth: CsrfProtectedAuth
+) -> RecoveryCredentialResponse:
+    key = request.client.host if request.client else "unknown"
+    if not await credential_issuance_rate_limiter.allow(key):
+        raise HTTPException(status_code=429, detail="Too many requests")
+    try:
+        code = await replace_credential(db, auth.user.id)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    auth.user.recovery_code_acknowledged_at = None
     await db.commit()
     return RecoveryCredentialResponse(code=code)
 

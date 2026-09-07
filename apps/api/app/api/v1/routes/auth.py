@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException, Request, Response, status
+from sqlalchemy import select
 
 from app.api.dependencies import Configuration, CurrentAuth, Database
 from app.core.rate_limit import FixedWindowRateLimiter
+from app.models import RecoveryCredential
 from app.schemas.auth import AnonymousSessionResponse, CsrfResponse, MeResponse
 from app.services.auth import (
     AuthContext,
@@ -16,11 +18,19 @@ anonymous_rate_limiter: FixedWindowRateLimiter | None = None
 
 
 async def to_me_response(db: Database, auth: AuthContext) -> MeResponse:
+    credential_exists = await db.scalar(
+        select(RecoveryCredential.id).where(
+            RecoveryCredential.user_id == auth.user.id,
+            RecoveryCredential.disabled_at.is_(None),
+        )
+    )
     return MeResponse(
         id=auth.user.id,
         created_at=auth.user.created_at,
         onboarding_completed=auth.user.onboarding_completed_at is not None,
         flow_state=await get_flow_state(db, auth.user),
+        credential_exists=credential_exists is not None,
+        recovery_code_acknowledged=auth.user.recovery_code_acknowledged_at is not None,
     )
 
 

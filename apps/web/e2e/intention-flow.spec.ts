@@ -20,7 +20,7 @@ async function checkAndCapture(
   });
 }
 
-test("landing through recovery login returns to the same active Intention", async ({
+test("replacement recovery code restores the same active Intention", async ({
   page,
   browser,
 }) => {
@@ -78,31 +78,39 @@ test("landing through recovery login returns to the same active Intention", asyn
   await checkAndCapture(page, "10-active-home");
   await page.reload();
   await expect(page).toHaveURL(/\/home$/);
-  await page.goto("/");
-  await expect(page).toHaveURL(/\/home$/);
+  await page.getByRole("button", { name: "Код доступа" }).click();
+  await expect(page).toHaveURL(/\/recovery$/);
+  await expect(
+    page.getByText(/Предыдущий код перестанет работать/),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Создать новый код" }).click();
+  const replacementCode = await page.locator("code").innerText();
+  expect(replacementCode).not.toBe(recoveryCode);
+
   const recoveredContext = await browser.newContext();
   const recoveredPage = await recoveredContext.newPage();
   await recoveredPage.goto("/recover");
   await recoveredPage.getByLabel("Recovery code").fill(recoveryCode);
   await recoveredPage.getByRole("button", { name: "Продолжить" }).click();
-  await expect(recoveredPage).toHaveURL(/\/home$/);
   await expect(
-    recoveredPage.getByText("Куплю себе хорошие наушники."),
+    recoveredPage.getByText(
+      "Не получилось восстановить доступ. Проверь код и попробуй ещё раз.",
+    ),
   ).toBeVisible();
-  await recoveredPage.reload();
-  await expect(recoveredPage).toHaveURL(/\/home$/);
   await recoveredContext.close();
 
-  const repeatedContext = await browser.newContext();
-  const repeatedPage = await repeatedContext.newPage();
-  await repeatedPage.goto("/recover");
-  await repeatedPage.getByLabel("Recovery code").fill(recoveryCode);
-  await repeatedPage.getByRole("button", { name: "Продолжить" }).click();
-  await expect(repeatedPage).toHaveURL(/\/home$/);
+  const replacementContext = await browser.newContext();
+  const replacementPage = await replacementContext.newPage();
+  await replacementPage.goto("/recover");
+  await replacementPage.getByLabel("Recovery code").fill(replacementCode);
+  await replacementPage.getByRole("button", { name: "Продолжить" }).click();
+  await expect(replacementPage).toHaveURL(/\/home$/);
   await expect(
-    repeatedPage.getByText("Куплю себе хорошие наушники."),
+    replacementPage.getByText("Куплю себе хорошие наушники."),
   ).toBeVisible();
-  await repeatedContext.close();
+  await replacementContext.close();
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/home$/);
 });
 
 test("invalid recovery code gets a neutral error", async ({ page }) => {

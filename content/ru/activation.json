@@ -18,6 +18,9 @@
     "copy_action": "Скопировать",
     "acknowledge_action": "Я сохранил код",
     "later_action": "Сделать позже",
-    "recovery_error": "Не получилось выдать код. Попробуй ещё раз."
+    "recovery_error": "Не получилось выдать код. Попробуй ещё раз.",
+    "replacement_warning": "Предыдущий код перестанет работать. Новый код будет показан только один раз.",
+    "replacement_action": "Создать новый код",
+    "manage_recovery_action": "Код доступа"
   }
 }

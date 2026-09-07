@@ -79,3 +79,59 @@ async def test_invalid_and_unknown_recovery_codes_have_the_same_neutral_error() 
         assert invalid_format.json() == unknown_code.json() == {"detail": "Invalid recovery code"}
     finally:
         await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_replacement_disables_old_code_and_preserves_sessions() -> None:
+    owner, user_id, csrf = await active_intention_client()
+    headers = {"Origin": ORIGIN, "X-CSRF-Token": csrf}
+    old_login = AsyncClient(transport=ASGITransport(app=app), base_url=ORIGIN)
+    new_login = AsyncClient(transport=ASGITransport(app=app), base_url=ORIGIN)
+    try:
+        issued = await owner.post("/api/v1/me/recovery-credential", headers=headers)
+        old_code = issued.json()["code"]
+        acknowledged = await owner.post("/api/v1/me/recovery-code-acknowledgement", headers=headers)
+        assert acknowledged.status_code == 200
+
+        replacement = await owner.post(
+            "/api/v1/me/recovery-credential/replacement", headers=headers
+        )
+        assert replacement.status_code == 200
+        new_code = replacement.json()["code"]
+        assert new_code != old_code
+        me = await owner.get("/api/v1/me")
+        assert me.json()["credential_exists"] is True
+        assert me.json()["recovery_code_acknowledged"] is False
+
+        assert (
+            await old_login.post("/api/v1/auth/recover", json={"code": old_code})
+        ).status_code == 401
+        assert (
+            await new_login.post("/api/v1/auth/recover", json={"code": new_code})
+        ).status_code == 200
+        assert (await new_login.get("/api/v1/me")).json()["id"] == user_id
+        assert (await new_login.get("/api/v1/me")).json()["flow_state"] == "active"
+        assert (await owner.get("/api/v1/me")).json()["id"] == user_id
+
+        async with SessionFactory() as db:
+            credentials = list(
+                (
+                    await db.scalars(
+                        select(RecoveryCredential)
+                        .where(RecoveryCredential.user_id == uuid.UUID(user_id))
+                        .order_by(RecoveryCredential.created_at)
+                    )
+                ).all()
+            )
+            assert len(credentials) == 2
+            assert credentials[0].disabled_at is not None
+            assert credentials[1].disabled_at is None
+            assert old_code.rsplit("-", 1)[1] not in credentials[0].secret_hash
+            assert new_code.rsplit("-", 1)[1] not in credentials[1].secret_hash
+    finally:
+        await owner.aclose()
+        await old_login.aclose()
+        await new_login.aclose()
+        async with SessionFactory() as db:
+            await db.execute(delete(AnonymousUser).where(AnonymousUser.id == uuid.UUID(user_id)))
+            await db.commit()
