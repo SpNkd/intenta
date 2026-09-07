@@ -1,4 +1,5 @@
 import common from "../../../../content/ru/common.json";
+import activation from "../../../../content/ru/activation.json";
 import intentions from "../../../../content/ru/intentions.json";
 import onboarding from "../../../../content/ru/onboarding.json";
 
@@ -26,4 +27,5 @@ export const content = {
   returnAction: requiredText("return_action"),
   onboardingSteps: onboarding.data,
   intentions: intentions.data,
+  activation: activation.data,
 } as const;

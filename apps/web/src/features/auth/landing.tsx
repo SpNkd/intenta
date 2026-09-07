@@ -20,7 +20,9 @@ export function Landing() {
           ? "/onboarding"
           : data.flow_state === "paper"
             ? "/intention/paper"
-            : "/intention",
+            : data.flow_state === "active"
+              ? "/home"
+              : "/intention",
       );
     });
     return () => {

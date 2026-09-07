@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -44,3 +45,5 @@ class IntentionResponse(BaseModel):
     statement_template_key: str
     statement_template_version: int
     technique: TechniqueSnapshot
+    activated_at: datetime | None
+    observation_day: int | None

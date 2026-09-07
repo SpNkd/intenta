@@ -2,5 +2,15 @@
   "schema_version": 1,
   "locale": "ru",
   "namespace": "activation",
-  "data": {}
+  "data": {
+    "activate_action": "Создать Интенту",
+    "activation_error": "Не получилось создать Интенту. Попробуй ещё раз.",
+    "created_title": "Интента создана.",
+    "created_description": "Теперь ничего специально делать не нужно. Не ищи подтверждение и не пытайся подстроить результат. Просто живи как обычно.",
+    "observing_status": "Наблюдаем",
+    "day_label": "День {day}",
+    "happened_action": "Кажется, случилось",
+    "finish_action": "Завершить наблюдение",
+    "outcome_unavailable": "Этот следующий шаг появится позже."
+  }
 }

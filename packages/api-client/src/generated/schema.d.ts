@@ -124,6 +124,23 @@ export interface paths {
         patch: operations["updateIntention"];
         trace?: never;
     };
+    "/api/v1/intentions/{intention_id}/activation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activate Intention */
+        post: operations["activateIntention"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -216,6 +233,8 @@ export interface components {
         };
         /** IntentionResponse */
         IntentionResponse: {
+            /** Activated At */
+            activated_at: string | null;
             /** Amount Minor */
             amount_minor: number;
             /** Currency */
@@ -229,6 +248,8 @@ export interface components {
             intention_statement: string;
             /** Intention Text Raw */
             intention_text_raw: string;
+            /** Observation Day */
+            observation_day: number | null;
             /** Reflection After Days */
             reflection_after_days: number;
             /** Statement Template Key */
@@ -473,6 +494,39 @@ export interface operations {
                 "application/json": components["schemas"]["IntentionInput"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntentionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activateIntention: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                intention_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

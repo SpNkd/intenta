@@ -130,3 +130,47 @@ async def test_cannot_read_or_edit_another_users_draft() -> None:
                 )
             )
             await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_activation_is_atomic_immutable_and_updates_flow_state() -> None:
+    client, user_id, csrf = await onboarded_client()
+    headers = {"Origin": ORIGIN, "X-CSRF-Token": csrf}
+    try:
+        draft = await client.post(
+            "/api/v1/intentions",
+            json={"intention_text_raw": "Куплю себе хорошую книгу"},
+            headers=headers,
+        )
+        intention_id = draft.json()["id"]
+        activated = await client.post(
+            f"/api/v1/intentions/{intention_id}/activation", headers=headers
+        )
+        assert activated.status_code == 200
+        assert activated.json()["status"] == "active"
+        assert activated.json()["activated_at"] is not None
+        assert activated.json()["observation_day"] == 1
+        assert (await client.get("/api/v1/me")).json()["flow_state"] == "active"
+        assert (await client.get("/api/v1/intentions/current")).json()["id"] == intention_id
+        assert (
+            await client.post(f"/api/v1/intentions/{intention_id}/activation", headers=headers)
+        ).status_code == 409
+        assert (
+            await client.patch(
+                f"/api/v1/intentions/{intention_id}",
+                json={"intention_text_raw": "Попытка изменить active"},
+                headers=headers,
+            )
+        ).status_code == 409
+        assert (
+            await client.post(
+                "/api/v1/intentions",
+                json={"intention_text_raw": "Второй draft"},
+                headers=headers,
+            )
+        ).json()["id"] == intention_id
+    finally:
+        await client.aclose()
+        async with SessionFactory() as db:
+            await db.execute(delete(AnonymousUser).where(AnonymousUser.id == uuid.UUID(user_id)))
+            await db.commit()

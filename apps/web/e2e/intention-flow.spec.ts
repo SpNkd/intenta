@@ -63,6 +63,15 @@ test("landing through onboarding, draft, paper and Technique", async ({
   ).toBeVisible();
   await expect(page.getByText(/Прочитай написанное один раз/)).toBeVisible();
   await checkAndCapture(page, "09-technique");
+  await page.getByRole("button", { name: "Создать Интенту" }).click();
+  await expect(page).toHaveURL(/\/home$/);
+  await expect(page.getByText("Наблюдаем")).toBeVisible();
+  await expect(page.getByText("Куплю себе хорошие наушники.")).toBeVisible();
+  await checkAndCapture(page, "10-active-home");
+  await page.reload();
+  await expect(page).toHaveURL(/\/home$/);
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/home$/);
 });
 
 test("an existing session is reused on landing revisit", async ({ page }) => {

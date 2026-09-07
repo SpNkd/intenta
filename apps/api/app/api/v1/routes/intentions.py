@@ -1,9 +1,10 @@
 import uuid
 
 from fastapi import APIRouter, HTTPException, Response, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.api.dependencies import CsrfProtectedAuth, CurrentAuth, Database
+from app.core.clock import now_utc
 from app.models import Intention
 from app.schemas.intentions import IntentionInput, IntentionResponse, TechniqueSnapshot
 from app.services.intentions import build_statement, create_draft
@@ -12,6 +13,9 @@ router = APIRouter(prefix="/intentions", tags=["intentions"])
 
 
 def to_response(intention: Intention) -> IntentionResponse:
+    observation_day = None
+    if intention.activated_at is not None:
+        observation_day = max(1, (now_utc() - intention.activated_at).days + 1)
     return IntentionResponse(
         id=intention.id,
         status=intention.status,
@@ -29,6 +33,8 @@ def to_response(intention: Intention) -> IntentionResponse:
             title=intention.technique_title,
             instruction=intention.technique_instruction,
         ),
+        activated_at=intention.activated_at,
+        observation_day=observation_day,
     )
 
 
@@ -97,4 +103,37 @@ async def update_intention(
     intention.statement_template_version = version
     await db.commit()
     await db.refresh(intention)
+    return to_response(intention)
+
+
+@router.post(
+    "/{intention_id}/activation",
+    response_model=IntentionResponse,
+    operation_id="activateIntention",
+)
+async def activate_intention(
+    intention_id: uuid.UUID, db: Database, auth: CsrfProtectedAuth
+) -> IntentionResponse:
+    activated_at = now_utc()
+    result = await db.execute(
+        update(Intention)
+        .where(
+            Intention.id == intention_id,
+            Intention.user_id == auth.user.id,
+            Intention.status == "draft",
+        )
+        .values(status="active", activated_at=activated_at)
+        .returning(Intention)
+    )
+    intention = result.scalar_one_or_none()
+    if intention is None:
+        existing = await db.scalar(
+            select(Intention.id).where(
+                Intention.id == intention_id, Intention.user_id == auth.user.id
+            )
+        )
+        if existing is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Intention not found")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Intention is not a draft")
+    await db.commit()
     return to_response(intention)
