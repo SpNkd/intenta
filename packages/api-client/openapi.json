@@ -275,6 +275,7 @@
       "RecoveryLoginRequest": {
         "properties": {
           "code": {
+            "maxLength": 128,
             "title": "Code",
             "type": "string"
           }
@@ -418,13 +419,11 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
+          "204": {
             "description": "Successful Response"
+          },
+          "401": {
+            "description": "Recovery code is invalid"
           },
           "422": {
             "content": {
@@ -435,6 +434,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
           }
         },
         "summary": "Recover With Code",
@@ -852,6 +854,15 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Authentication required or recovery code is invalid"
+          },
+          "403": {
+            "description": "CSRF token or request origin is invalid"
+          },
+          "409": {
+            "description": "Recovery credential state conflict"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -861,6 +872,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
           }
         },
         "summary": "Acknowledge Recovery Code",
@@ -901,6 +915,15 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Authentication required or recovery code is invalid"
+          },
+          "403": {
+            "description": "CSRF token or request origin is invalid"
+          },
+          "409": {
+            "description": "Recovery credential state conflict"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -910,6 +933,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
           }
         },
         "summary": "Issue Recovery Credential",
@@ -950,6 +976,15 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Authentication required or recovery code is invalid"
+          },
+          "403": {
+            "description": "CSRF token or request origin is invalid"
+          },
+          "409": {
+            "description": "Recovery credential state conflict"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -959,6 +994,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
           }
         },
         "summary": "Replace Recovery Credential",

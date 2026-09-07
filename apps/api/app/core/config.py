@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     session_ttl_days: int = Field(default=30, ge=1, le=365)
     allowed_origins: str = "http://127.0.0.1:3000,http://localhost:3000"
     anonymous_rate_limit_per_minute: int = Field(default=20, ge=1, le=1000)
+    recovery_rate_limit_hmac_key: str = Field(
+        default="local-development-only-change-me", min_length=16
+    )
 
     @property
     def allowed_origin_set(self) -> frozenset[str]:

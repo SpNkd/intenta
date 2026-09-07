@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from typing import Annotated
+
+from pydantic import BaseModel, Field
 
 
 class RecoveryCredentialResponse(BaseModel):
@@ -10,4 +12,4 @@ class RecoveryAcknowledgementResponse(BaseModel):
 
 
 class RecoveryLoginRequest(BaseModel):
-    code: str
+    code: Annotated[str, Field(max_length=128)]

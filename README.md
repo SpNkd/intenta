@@ -78,6 +78,8 @@ calls `/api/v1/*` on the Next.js origin; the development rewrite proxies request
 The session token is stored in an HttpOnly cookie and only its SHA-256 hash is kept
 in PostgreSQL. Local HTTP development uses `SESSION_COOKIE_SECURE=false`; production
 must enable the Secure cookie setting and list its HTTPS origin in `ALLOWED_ORIGINS`.
+Production must also replace `RECOVERY_RATE_LIMIT_HMAC_KEY`; Argon2 benchmarking,
+rehash policy and enforced `__Host-` cookie configuration remain release-hardening tasks.
 
 PostgreSQL is exposed on host port `5433` to avoid clashing with a system PostgreSQL;
 inside Docker it still listens on `5432`. Override the host port with `POSTGRES_PORT` and

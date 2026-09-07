@@ -117,9 +117,7 @@ test("invalid recovery code gets a neutral error", async ({ page }) => {
   await page.goto("/recover");
   await page
     .getByLabel("Recovery code")
-    .fill(
-      "INTENTA-0000000000000000-000000000000000000000000000000000000000000000000",
-    );
+    .fill("INTENTA-ABCDEFGH-00000000000000000000");
   await page.getByRole("button", { name: "Продолжить" }).click();
   await expect(
     page.getByText(

@@ -67,7 +67,7 @@ async def get_intention(
 
 @router.post("", response_model=IntentionResponse, status_code=201, operation_id="createIntention")
 async def create_intention(
-    payload: IntentionInput, db: Database, auth: CsrfProtectedAuth
+    payload: IntentionInput, response: Response, db: Database, auth: CsrfProtectedAuth
 ) -> IntentionResponse:
     try:
         intention = await create_draft(db, auth.user, payload.intention_text_raw)
@@ -75,6 +75,7 @@ async def create_intention(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
     await db.commit()
     await db.refresh(intention)
+    response.headers["Cache-Control"] = "no-store"
     return to_response(intention)
 
 
@@ -82,6 +83,7 @@ async def create_intention(
 async def update_intention(
     intention_id: uuid.UUID,
     payload: IntentionInput,
+    response: Response,
     db: Database,
     auth: CsrfProtectedAuth,
 ) -> IntentionResponse:
@@ -103,6 +105,7 @@ async def update_intention(
     intention.statement_template_version = version
     await db.commit()
     await db.refresh(intention)
+    response.headers["Cache-Control"] = "no-store"
     return to_response(intention)
 
 
@@ -112,7 +115,7 @@ async def update_intention(
     operation_id="activateIntention",
 )
 async def activate_intention(
-    intention_id: uuid.UUID, db: Database, auth: CsrfProtectedAuth
+    intention_id: uuid.UUID, response: Response, db: Database, auth: CsrfProtectedAuth
 ) -> IntentionResponse:
     activated_at = now_utc()
     result = await db.execute(
@@ -136,4 +139,5 @@ async def activate_intention(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Intention not found")
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Intention is not a draft")
     await db.commit()
+    response.headers["Cache-Control"] = "no-store"
     return to_response(intention)
