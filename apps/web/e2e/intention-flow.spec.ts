@@ -64,6 +64,12 @@ test("landing through onboarding, draft, paper and Technique", async ({
   await expect(page.getByText(/Прочитай написанное один раз/)).toBeVisible();
   await checkAndCapture(page, "09-technique");
   await page.getByRole("button", { name: "Создать Интенту" }).click();
+  await expect(page).toHaveURL(/\/recovery$/);
+  await page.getByRole("button", { name: "Показать код" }).click();
+  await expect(
+    page.getByRole("button", { name: "Я сохранил код" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Я сохранил код" }).click();
   await expect(page).toHaveURL(/\/home$/);
   await expect(page.getByText("Наблюдаем")).toBeVisible();
   await expect(page.getByText("Куплю себе хорошие наушники.")).toBeVisible();

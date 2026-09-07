@@ -46,7 +46,7 @@ export function TechniqueScreen() {
       setActivating(false);
       return;
     }
-    router.push("/home");
+    router.push("/recovery");
   }
   if (!draft)
     return (

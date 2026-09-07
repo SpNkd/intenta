@@ -236,6 +236,32 @@
         "title": "MeResponse",
         "type": "object"
       },
+      "RecoveryAcknowledgementResponse": {
+        "properties": {
+          "acknowledged": {
+            "title": "Acknowledged",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "acknowledged"
+        ],
+        "title": "RecoveryAcknowledgementResponse",
+        "type": "object"
+      },
+      "RecoveryCredentialResponse": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "RecoveryCredentialResponse",
+        "type": "object"
+      },
       "TechniqueSnapshot": {
         "properties": {
           "instruction": {
@@ -729,6 +755,104 @@
         "summary": "Complete Onboarding",
         "tags": [
           "current user"
+        ]
+      }
+    },
+    "/api/v1/me/recovery-code-acknowledgement": {
+      "post": {
+        "operationId": "acknowledgeRecoveryCode",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryAcknowledgementResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Acknowledge Recovery Code",
+        "tags": [
+          "recovery"
+        ]
+      }
+    },
+    "/api/v1/me/recovery-credential": {
+      "post": {
+        "operationId": "issueRecoveryCredential",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryCredentialResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Issue Recovery Credential",
+        "tags": [
+          "recovery"
         ]
       }
     }
