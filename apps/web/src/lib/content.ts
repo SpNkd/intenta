@@ -4,6 +4,7 @@ import intentions from "../../../../content/ru/intentions.json";
 import onboarding from "../../../../content/ru/onboarding.json";
 import outcomes from "../../../../content/ru/outcomes.json";
 import reflections from "../../../../content/ru/reflections.json";
+import history from "../../../../content/ru/history.json";
 
 function requiredText(key: string): string {
   const value = common.data[key as keyof typeof common.data];
@@ -36,4 +37,5 @@ export const content = {
   activation: activation.data,
   outcomes: outcomes.data,
   reflections: reflections.data,
+  history: history.data,
 } as const;

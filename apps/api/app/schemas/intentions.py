@@ -51,6 +51,22 @@ class IntentionResponse(BaseModel):
     reflection_due: bool
 
 
+class HistoryIntentionResponse(BaseModel):
+    id: uuid.UUID
+    status: Literal["draft", "active", "completed", "cancelled"]
+    amount_minor: int
+    currency: str
+    intention_text_raw: str
+    completed_at: datetime | None
+    observation_days: int | None
+    outcome_resolution: Literal["happened", "not_happened", "uncertain"] | None
+
+
+class HistoryPageResponse(BaseModel):
+    items: list[HistoryIntentionResponse]
+    next_cursor: str | None
+
+
 class OutcomeInput(BaseModel):
     resolution: Literal["happened", "not_happened", "uncertain"]
     outcome_type: Literal["money", "other_amount", "opportunity", "similar", "other", "none"]

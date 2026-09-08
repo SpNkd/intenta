@@ -3,6 +3,7 @@
 import { api } from "@intenta/api-client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { MainNavigation } from "../../components/main-navigation";
 import { content } from "../../lib/content";
 
 type Active = {
@@ -154,6 +155,7 @@ export function ActiveHome() {
       >
         {content.activation.manage_recovery_action}
       </button>
+      <MainNavigation />
     </main>
   );
 }

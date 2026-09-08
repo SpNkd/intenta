@@ -50,6 +50,6 @@ describe("RecoveryScreen", () => {
         { headers: { "X-CSRF-Token": "csrf-value" } },
       ),
     );
-    expect(screen.getByText("INTENTA-new-code")).toBeInTheDocument();
+    expect(await screen.findByText("INTENTA-new-code")).toBeInTheDocument();
   });
 });

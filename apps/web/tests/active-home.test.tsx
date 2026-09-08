@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
+  usePathname: () => "/home",
 }));
 
 vi.mock("@intenta/api-client", () => ({

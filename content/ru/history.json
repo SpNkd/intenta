@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "locale": "ru",
+  "namespace": "history",
+  "data": {
+    "title": "История",
+    "empty_title": "Здесь появятся Интенты",
+    "empty_description": "Когда ты создашь первую Интенту, она останется здесь.",
+    "load_more_action": "Показать ещё",
+    "load_error": "Не получилось загрузить историю. Попробуй ещё раз.",
+    "status_draft": "Черновик",
+    "status_active": "Наблюдаем",
+    "status_completed": "Результат сохранён",
+    "outcome_happened": "Событие зафиксировано",
+    "outcome_not_happened": "Ничего не произошло",
+    "outcome_uncertain": "Не уверен",
+    "completed_label": "Завершено {date}",
+    "observation_days_label": "Наблюдение: {days} дн.",
+    "active_days_label": "День {days}",
+    "nav_intention": "Интента",
+    "nav_history": "История"
+  }
+}

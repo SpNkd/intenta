@@ -103,6 +103,116 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "HistoryIntentionResponse": {
+        "properties": {
+          "amount_minor": {
+            "title": "Amount Minor",
+            "type": "integer"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "intention_text_raw": {
+            "title": "Intention Text Raw",
+            "type": "string"
+          },
+          "observation_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observation Days"
+          },
+          "outcome_resolution": {
+            "anyOf": [
+              {
+                "enum": [
+                  "happened",
+                  "not_happened",
+                  "uncertain"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome Resolution"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "active",
+              "completed",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "amount_minor",
+          "currency",
+          "intention_text_raw",
+          "completed_at",
+          "observation_days",
+          "outcome_resolution"
+        ],
+        "title": "HistoryIntentionResponse",
+        "type": "object"
+      },
+      "HistoryPageResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryIntentionResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "HistoryPageResponse",
+        "type": "object"
+      },
       "IntentionInput": {
         "properties": {
           "intention_text_raw": {
@@ -714,6 +824,65 @@
       }
     },
     "/api/v1/intentions": {
+      "get": {
+        "operationId": "listIntentions",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryPageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Intentions",
+        "tags": [
+          "intentions"
+        ]
+      },
       "post": {
         "operationId": "createIntention",
         "parameters": [

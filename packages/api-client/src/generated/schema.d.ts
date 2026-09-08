@@ -96,7 +96,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List Intentions */
+        get: operations["listIntentions"];
         put?: never;
         /** Create Intention */
         post: operations["createIntention"];
@@ -328,6 +329,38 @@ export interface components {
              * @constant
              */
             status: "ok";
+        };
+        /** HistoryIntentionResponse */
+        HistoryIntentionResponse: {
+            /** Amount Minor */
+            amount_minor: number;
+            /** Completed At */
+            completed_at: string | null;
+            /** Currency */
+            currency: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Intention Text Raw */
+            intention_text_raw: string;
+            /** Observation Days */
+            observation_days: number | null;
+            /** Outcome Resolution */
+            outcome_resolution: ("happened" | "not_happened" | "uncertain") | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "active" | "completed" | "cancelled";
+        };
+        /** HistoryPageResponse */
+        HistoryPageResponse: {
+            /** Items */
+            items: components["schemas"]["HistoryIntentionResponse"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** IntentionInput */
         IntentionInput: {
@@ -625,6 +658,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    listIntentions: {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryPageResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -1,13 +1,17 @@
+import base64
+import json
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Response, status
-from sqlalchemy import select, update
+from fastapi import APIRouter, HTTPException, Query, Response, status
+from sqlalchemy import and_, or_, select, update
 
 from app.api.dependencies import CsrfProtectedAuth, CurrentAuth, Database
 from app.core.clock import now_utc
 from app.models import Intention, Outcome
 from app.schemas.intentions import (
+    HistoryIntentionResponse,
+    HistoryPageResponse,
     IntentionInput,
     IntentionResponse,
     OutcomeInput,
@@ -57,6 +61,41 @@ def outcome_to_response(outcome: Outcome) -> OutcomeResponse:
     return OutcomeResponse.model_validate(outcome)
 
 
+def observation_days_for_history(intention: Intention, now: datetime) -> int | None:
+    if intention.activated_at is None:
+        return None
+    if intention.status == "completed":
+        if intention.completed_at is None:
+            return None
+        end_time = intention.completed_at
+    elif intention.status == "active":
+        end_time = now
+    else:
+        return None
+    return max(1, (end_time - intention.activated_at).days + 1)
+
+
+def encode_history_cursor(created_at: datetime, intention_id: uuid.UUID) -> str:
+    payload = json.dumps([created_at.isoformat(), str(intention_id)], separators=(",", ":"))
+    return base64.urlsafe_b64encode(payload.encode()).decode().rstrip("=")
+
+
+def decode_history_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
+    try:
+        padding = "=" * (-len(cursor) % 4)
+        created_at_raw, intention_id_raw = json.loads(
+            base64.urlsafe_b64decode((cursor + padding).encode()).decode()
+        )
+        created_at = datetime.fromisoformat(created_at_raw)
+        if created_at.tzinfo is None:
+            raise ValueError
+        return created_at, uuid.UUID(intention_id_raw)
+    except (TypeError, ValueError, json.JSONDecodeError) as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Invalid cursor"
+        ) from error
+
+
 @router.get("/current", response_model=IntentionResponse | None, operation_id="getCurrentIntention")
 async def get_current(
     response: Response, db: Database, auth: CurrentAuth
@@ -69,6 +108,54 @@ async def get_current(
     )
     response.headers["Cache-Control"] = "no-store"
     return to_response(intention) if intention else None
+
+
+@router.get("", response_model=HistoryPageResponse, operation_id="listIntentions")
+async def list_intentions(
+    response: Response,
+    db: Database,
+    auth: CurrentAuth,
+    cursor: str | None = None,
+    limit: int = Query(default=20, ge=1, le=50),
+) -> HistoryPageResponse:
+    cursor_values = decode_history_cursor(cursor) if cursor else None
+    statement = (
+        select(Intention, Outcome.resolution)
+        .outerjoin(Outcome, Outcome.intention_id == Intention.id)
+        .where(Intention.user_id == auth.user.id)
+        .order_by(Intention.created_at.desc(), Intention.id.desc())
+        .limit(limit + 1)
+    )
+    if cursor_values is not None:
+        cursor_created_at, cursor_id = cursor_values
+        statement = statement.where(
+            or_(
+                Intention.created_at < cursor_created_at,
+                and_(Intention.created_at == cursor_created_at, Intention.id < cursor_id),
+            )
+        )
+    rows = (await db.execute(statement)).all()
+    page_rows = rows[:limit]
+    current_time = now_utc()
+    items = [
+        HistoryIntentionResponse(
+            id=intention.id,
+            status=intention.status,
+            amount_minor=intention.amount_minor,
+            currency=intention.currency,
+            intention_text_raw=intention.intention_text_raw,
+            completed_at=intention.completed_at,
+            observation_days=observation_days_for_history(intention, current_time),
+            outcome_resolution=outcome_resolution,
+        )
+        for intention, outcome_resolution in page_rows
+    ]
+    next_cursor = None
+    if len(rows) > limit and page_rows:
+        last_intention = page_rows[-1][0]
+        next_cursor = encode_history_cursor(last_intention.created_at, last_intention.id)
+    response.headers["Cache-Control"] = "no-store"
+    return HistoryPageResponse(items=items, next_cursor=next_cursor)
 
 
 @router.get("/{intention_id}", response_model=IntentionResponse, operation_id="getIntention")

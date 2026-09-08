@@ -224,7 +224,7 @@ export function OutcomeScreen() {
           {content.outcomes.continue_experiment_action}
         </button>
         <button
-          disabled
+          onClick={() => router.push("/history")}
           className="mt-3 min-h-12 text-sm text-[var(--muted)] disabled:opacity-60"
         >
           {content.outcomes.view_history_action}

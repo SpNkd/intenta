@@ -93,9 +93,8 @@ describe("OutcomeScreen", () => {
       screen.getByRole("button", { name: "Продолжить эксперимент" }),
     );
     expect(mocks.push).toHaveBeenCalledWith("/intention");
-    expect(
-      screen.getByRole("button", { name: "Посмотреть историю" }),
-    ).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Посмотреть историю" }));
+    expect(mocks.push).toHaveBeenCalledWith("/history");
   });
 
   it("offers uncertain closure without a negative evaluation", async () => {
