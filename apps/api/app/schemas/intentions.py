@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+MAX_OUTCOME_AMOUNT_MINOR = 10_000_000_000
+
 
 class TechniqueSnapshot(BaseModel):
     key: str
@@ -84,7 +86,7 @@ class OutcomeInput(BaseModel):
         ]
         | None
     ) = None
-    amount_received_minor: int | None = Field(default=None, ge=0)
+    amount_received_minor: int | None = Field(default=None, ge=0, le=MAX_OUTCOME_AMOUNT_MINOR)
     was_expected: Literal["yes", "no", "unsure", "not_applicable"]
     followed_original_intention: Literal[
         "yes", "not_yet", "chose_other", "did_not_spend", "not_applicable"

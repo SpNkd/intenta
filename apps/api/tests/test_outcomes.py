@@ -8,6 +8,7 @@ from sqlalchemy import delete, func, select
 from app.core.database import SessionFactory
 from app.main import app
 from app.models import AnonymousUser, Intention, Outcome
+from app.schemas.intentions import MAX_OUTCOME_AMOUNT_MINOR
 
 ORIGIN = "http://127.0.0.1:3000"
 
@@ -159,6 +160,54 @@ async def test_outcome_rejects_invalid_combinations_and_other_users() -> None:
                     AnonymousUser.id.in_((uuid.UUID(owner_id), uuid.UUID(stranger_id)))
                 )
             )
+            await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_outcome_amount_uses_a_bounded_minor_unit_range() -> None:
+    client, user_id, csrf, intention_id = await active_client()
+    headers = {"Origin": ORIGIN, "X-CSRF-Token": csrf}
+    try:
+        for amount in (-1, MAX_OUTCOME_AMOUNT_MINOR + 1):
+            payload = happened_payload()
+            payload["amount_received_minor"] = amount
+            response = await client.post(
+                f"/api/v1/intentions/{intention_id}/outcome",
+                json=payload,
+                headers=headers,
+            )
+            assert response.status_code == 422
+
+        zero_payload = happened_payload()
+        zero_payload["amount_received_minor"] = 0
+        assert (
+            await client.post(
+                f"/api/v1/intentions/{intention_id}/outcome",
+                json=zero_payload,
+                headers=headers,
+            )
+        ).status_code == 201
+    finally:
+        await client.aclose()
+        async with SessionFactory() as db:
+            await db.execute(delete(AnonymousUser).where(AnonymousUser.id == uuid.UUID(user_id)))
+            await db.commit()
+
+    client, user_id, csrf, intention_id = await active_client()
+    try:
+        max_payload = happened_payload()
+        max_payload["amount_received_minor"] = MAX_OUTCOME_AMOUNT_MINOR
+        response = await client.post(
+            f"/api/v1/intentions/{intention_id}/outcome",
+            json=max_payload,
+            headers={"Origin": ORIGIN, "X-CSRF-Token": csrf},
+        )
+        assert response.status_code == 201
+        assert response.json()["amount_received_minor"] == MAX_OUTCOME_AMOUNT_MINOR
+    finally:
+        await client.aclose()
+        async with SessionFactory() as db:
+            await db.execute(delete(AnonymousUser).where(AnonymousUser.id == uuid.UUID(user_id)))
             await db.commit()
 
 

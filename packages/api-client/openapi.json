@@ -399,6 +399,7 @@
           "amount_received_minor": {
             "anyOf": [
               {
+                "maximum": 10000000000.0,
                 "minimum": 0.0,
                 "type": "integer"
               },

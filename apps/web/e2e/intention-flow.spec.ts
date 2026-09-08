@@ -20,6 +20,37 @@ async function checkAndCapture(
   });
 }
 
+async function createAndCompleteThroughUi(
+  page: import("@playwright/test").Page,
+  amount: RegExp,
+  intentionText: string,
+  isFirstActivation = false,
+) {
+  await expect(page.getByRole("heading", { name: amount })).toBeVisible();
+  await page.getByRole("button", { name: "Продолжить" }).click();
+  await page.getByLabel("Моё намерение").fill(intentionText);
+  await page.getByRole("button", { name: "Сохранить намерение" }).click();
+  await expect(page).toHaveURL(/\/intention\/paper$/);
+  await page.getByRole("button", { name: "Я записал" }).click();
+  await expect(page).toHaveURL(/\/intention\/technique$/);
+  await page.getByRole("button", { name: "Создать Интенту" }).click();
+
+  if (isFirstActivation) {
+    await expect(page).toHaveURL(/\/recovery$/);
+    await page.getByRole("button", { name: "Показать код" }).click();
+    await page.getByRole("button", { name: "Я сохранил код" }).click();
+  }
+
+  await expect(page).toHaveURL(/\/home$/);
+  await page.getByRole("button", { name: "Завершить наблюдение" }).click();
+  await page.getByRole("button", { name: "Не уверен" }).click();
+  await page.getByRole("button", { name: "Сохранить результат" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Результат сохранён" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Продолжить эксперимент" }).click();
+}
+
 test("replacement recovery code restores the same active Intention", async ({
   page,
   browser,
@@ -121,6 +152,8 @@ test("replacement recovery code restores the same active Intention", async ({
   await page
     .getByLabel("Откуда пришло событие? (необязательно)")
     .selectOption("gift");
+  await page.getByRole("radio", { name: "Нет" }).click();
+  await page.getByLabel("Потратил ли на записанное?").selectOption("not_yet");
   await page.getByLabel("Заметка (необязательно)").fill("Неожиданный подарок.");
   await page.getByRole("button", { name: "Сохранить результат" }).click();
   await expect(
@@ -154,7 +187,7 @@ test("replacement recovery code restores the same active Intention", async ({
   await expect(page.getByText("Куплю себе новый альбом.")).toBeVisible();
 });
 
-test("the last completed step leads to the terminal experiment state", async ({
+test("all experiment steps progress through the UI to history detail", async ({
   page,
 }) => {
   await page.goto("/");
@@ -164,53 +197,12 @@ test("the last completed step leads to the terminal experiment state", async ({
   }
   await page.getByRole("button", { name: "Начать" }).click();
   await expect(page).toHaveURL(/\/intention$/);
-  await expect(page.getByRole("heading", { name: "500 ₽" })).toBeVisible();
+  await createAndCompleteThroughUi(page, /500 ₽/, "Первое намерение.", true);
+  await createAndCompleteThroughUi(page, /1\s000 ₽/, "Второе намерение.");
+  await createAndCompleteThroughUi(page, /2\s000 ₽/, "Третье намерение.");
+  await createAndCompleteThroughUi(page, /5\s000 ₽/, "Четвёртое намерение.");
+  await createAndCompleteThroughUi(page, /10\s000 ₽/, "Пятое намерение.");
 
-  const csrfResponse = await page.request.get("/api/v1/auth/csrf");
-  const { csrf_token: csrfToken } = await csrfResponse.json();
-  const headers = {
-    Origin: new URL(page.url()).origin,
-    "X-CSRF-Token": csrfToken,
-  };
-  const closure = {
-    resolution: "uncertain",
-    outcome_type: "none",
-    source_type: null,
-    amount_received_minor: null,
-    was_expected: "not_applicable",
-    followed_original_intention: "not_applicable",
-    user_note: null,
-    occurred_at: null,
-  };
-  for (let position = 1; position <= 5; position += 1) {
-    const draft = await page.request.post("/api/v1/intentions", {
-      data: { intention_text_raw: `Моё намерение ${position}` },
-      headers,
-    });
-    expect(draft.ok()).toBe(true);
-    const intention = await draft.json();
-    expect(intention.step_position).toBe(position);
-    expect(
-      (
-        await page.request.post(
-          `/api/v1/intentions/${intention.id}/activation`,
-          {
-            headers,
-          },
-        )
-      ).ok(),
-    ).toBe(true);
-    expect(
-      (
-        await page.request.post(`/api/v1/intentions/${intention.id}/outcome`, {
-          data: closure,
-          headers,
-        })
-      ).status(),
-    ).toBe(201);
-  }
-
-  await page.goto("/intention");
   await expect(
     page.getByRole("heading", { name: "Эксперимент завершён" }),
   ).toBeVisible();
@@ -218,11 +210,10 @@ test("the last completed step leads to the terminal experiment state", async ({
   await checkAndCapture(page, "13-experiment-completed");
   await page.getByRole("button", { name: "Посмотреть историю" }).click();
   await expect(page).toHaveURL(/\/history$/);
-  await page.goto("/intention");
-  await page.getByRole("button", { name: "Код доступа" }).click();
-  await expect(page).toHaveURL(/\/recovery$/);
+  await page.getByText("Пятое намерение.").click();
+  await expect(page).toHaveURL(/\/history\//);
   await expect(
-    page.getByRole("button", { name: "Показать код" }),
+    page.getByText("Пятое намерение.", { exact: true }),
   ).toBeVisible();
 });
 

@@ -26,6 +26,30 @@ type SavedOutcome = {
 
 type OutcomeInput = components["schemas"]["OutcomeInput"];
 
+export const MAX_OUTCOME_AMOUNT_MINOR = 10_000_000_000;
+
+export function parseOutcomeAmountToMinor(value: string): number | null {
+  const normalized = value.trim().replace(",", ".");
+  if (!normalized) return null;
+  if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) return null;
+
+  const [whole, fraction = ""] = normalized.split(".");
+  const minorText =
+    `${whole.replace(/^0+/, "") || "0"}${fraction.padEnd(2, "0")}`.replace(
+      /^0+/,
+      "",
+    ) || "0";
+  const maximumText = String(MAX_OUTCOME_AMOUNT_MINOR);
+  if (
+    minorText.length > maximumText.length ||
+    (minorText.length === maximumText.length && minorText > maximumText)
+  ) {
+    return null;
+  }
+
+  return Number(minorText);
+}
+
 const money = (value: number) =>
   new Intl.NumberFormat("ru-RU").format(value / 100);
 
@@ -73,10 +97,12 @@ export function OutcomeScreen() {
     Exclude<OutcomeInput["source_type"], null | undefined> | ""
   >("");
   const [amount, setAmount] = useState("");
-  const [wasExpected, setWasExpected] =
-    useState<OutcomeInput["was_expected"]>("no");
-  const [spending, setSpending] =
-    useState<OutcomeInput["followed_original_intention"]>("not_yet");
+  const [wasExpected, setWasExpected] = useState<
+    Exclude<OutcomeInput["was_expected"], "not_applicable"> | ""
+  >("");
+  const [spending, setSpending] = useState<
+    Exclude<OutcomeInput["followed_original_intention"], "not_applicable"> | ""
+  >("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -108,19 +134,37 @@ export function OutcomeScreen() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    setBusy(true);
     setError("");
+    let amountReceivedMinor: number | null = null;
+    if (resolution === "happened") {
+      if (!wasExpected || !spending) {
+        setError(content.outcomes.required_answers_error);
+        return;
+      }
+      if (amount) {
+        amountReceivedMinor = parseOutcomeAmountToMinor(amount);
+        if (amountReceivedMinor === null) {
+          setError(content.outcomes.amount_validation_error);
+          return;
+        }
+      }
+    }
+    setBusy(true);
     const body: OutcomeInput =
       resolution === "happened"
         ? {
             resolution,
             outcome_type: eventType,
             source_type: sourceType || null,
-            amount_received_minor: amount
-              ? Math.round(Number(amount) * 100)
-              : null,
-            was_expected: wasExpected,
-            followed_original_intention: spending,
+            amount_received_minor: amountReceivedMinor,
+            was_expected: wasExpected as Exclude<
+              OutcomeInput["was_expected"],
+              "not_applicable"
+            >,
+            followed_original_intention: spending as Exclude<
+              OutcomeInput["followed_original_intention"],
+              "not_applicable"
+            >,
             user_note: note || null,
             occurred_at: null,
           }
@@ -308,9 +352,7 @@ export function OutcomeScreen() {
             <label className="block text-sm text-[var(--muted)]">
               {content.outcomes.amount_label}
               <input
-                type="number"
-                min="0"
-                step="0.01"
+                type="text"
                 inputMode="decimal"
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
@@ -361,7 +403,11 @@ export function OutcomeScreen() {
                 ].map(([value, label]) => (
                   <label
                     key={value}
-                    className="rounded-xl border border-[var(--border)] p-3 text-center text-sm"
+                    className={`rounded-xl border p-3 text-center text-sm transition-colors ${
+                      wasExpected === value
+                        ? "border-[var(--foreground)] bg-[var(--surface)] text-[var(--foreground)]"
+                        : "border-[var(--border)]"
+                    }`}
                   >
                     <input
                       type="radio"
@@ -369,9 +415,14 @@ export function OutcomeScreen() {
                       value={value}
                       checked={wasExpected === value}
                       onChange={() =>
-                        setWasExpected(value as OutcomeInput["was_expected"])
+                        setWasExpected(
+                          value as Exclude<
+                            OutcomeInput["was_expected"],
+                            "not_applicable"
+                          >,
+                        )
                       }
-                      className="sr-only"
+                      className="mr-2 size-4 accent-[var(--foreground)]"
                     />
                     {label}
                   </label>
@@ -384,12 +435,17 @@ export function OutcomeScreen() {
                 value={spending}
                 onChange={(event) =>
                   setSpending(
-                    event.target
-                      .value as OutcomeInput["followed_original_intention"],
+                    event.target.value as Exclude<
+                      OutcomeInput["followed_original_intention"],
+                      "not_applicable"
+                    >,
                   )
                 }
                 className="mt-2 min-h-12 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-[var(--foreground)]"
               >
+                <option value="" disabled>
+                  {content.outcomes.spending_placeholder}
+                </option>
                 <option value="yes">{content.outcomes.spending_yes}</option>
                 <option value="not_yet">
                   {content.outcomes.spending_not_yet}
@@ -418,7 +474,11 @@ export function OutcomeScreen() {
           </p>
         ) : null}
         <button
-          disabled={!csrf || busy}
+          disabled={
+            !csrf ||
+            busy ||
+            (resolution === "happened" && (!wasExpected || !spending))
+          }
           className="min-h-14 w-full rounded-full bg-[var(--foreground)] text-white disabled:opacity-60"
         >
           {busy ? content.loading : content.outcomes.save_action}

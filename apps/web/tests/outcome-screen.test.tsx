@@ -22,7 +22,11 @@ vi.mock("@intenta/api-client", () => ({
   api: { GET: mocks.get, POST: mocks.post },
 }));
 
-import { OutcomeScreen } from "../src/features/outcomes/outcome-screen";
+import {
+  MAX_OUTCOME_AMOUNT_MINOR,
+  OutcomeScreen,
+  parseOutcomeAmountToMinor,
+} from "../src/features/outcomes/outcome-screen";
 
 const activeIntention = {
   id: "intention-id",
@@ -69,6 +73,13 @@ describe("OutcomeScreen", () => {
         target: { value: "gift" },
       },
     );
+    expect(
+      screen.getByRole("button", { name: "Сохранить результат" }),
+    ).toBeDisabled();
+    fireEvent.click(screen.getByRole("radio", { name: "Нет" }));
+    fireEvent.change(screen.getByLabelText("Потратил ли на записанное?"), {
+      target: { value: "not_yet" },
+    });
     fireEvent.click(
       screen.getByRole("button", { name: "Сохранить результат" }),
     );
@@ -95,6 +106,44 @@ describe("OutcomeScreen", () => {
     expect(mocks.push).toHaveBeenCalledWith("/intention");
     fireEvent.click(screen.getByRole("button", { name: "Посмотреть историю" }));
     expect(mocks.push).toHaveBeenCalledWith("/history");
+  });
+
+  it("requires deliberate happened answers and rejects an invalid amount before sending", async () => {
+    render(<OutcomeScreen />);
+    await screen.findByRole("heading", { name: "Что произошло?" });
+    expect(screen.getByRole("radio", { name: "Да" })).not.toBeChecked();
+    expect(screen.getByRole("radio", { name: "Нет" })).not.toBeChecked();
+    expect(
+      screen.getByRole("button", { name: "Сохранить результат" }),
+    ).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Нет" }));
+    fireEvent.change(screen.getByLabelText("Потратил ли на записанное?"), {
+      target: { value: "not_yet" },
+    });
+    fireEvent.change(
+      screen.getByLabelText("Какая сумма появилась? (необязательно)"),
+      { target: { value: "100000000.01" } },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Сохранить результат" }),
+    );
+
+    expect(
+      await screen.findByText(
+        "Укажи сумму от 0 до 100 000 000 ₽ с точностью до копейки.",
+      ),
+    ).toBeInTheDocument();
+    expect(mocks.post).not.toHaveBeenCalled();
+  });
+
+  it("parses amount strings exactly within the fixed safe range", () => {
+    expect(parseOutcomeAmountToMinor("100000000")).toBe(
+      MAX_OUTCOME_AMOUNT_MINOR,
+    );
+    expect(parseOutcomeAmountToMinor("100000000.01")).toBeNull();
+    expect(parseOutcomeAmountToMinor("90071992547409.92")).toBeNull();
+    expect(parseOutcomeAmountToMinor("12,34")).toBe(1234);
   });
 
   it("offers uncertain closure without a negative evaluation", async () => {
