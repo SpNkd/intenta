@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +12,17 @@ from app.schemas.intentions import OutcomeInput
 
 class ProgressionConfigurationError(Exception):
     """The configured experiment ladder has a gap or an inactive next step."""
+
+
+def is_reflection_due(intention: Intention, now: datetime) -> bool:
+    if intention.status != "active" or intention.activated_at is None:
+        return False
+    if (
+        intention.reflection_deferred_until is not None
+        and intention.reflection_deferred_until > now
+    ):
+        return False
+    return now >= intention.activated_at + timedelta(days=intention.reflection_after_days)
 
 
 async def get_flow_state(db: AsyncSession, user: AnonymousUser) -> str:
@@ -150,3 +162,22 @@ async def create_outcome(
     db.add(outcome)
     await db.flush()
     return outcome
+
+
+async def defer_reflection(
+    db: AsyncSession, *, user_id: uuid.UUID, intention_id: uuid.UUID, now: datetime
+) -> Intention:
+    intention = await db.scalar(
+        select(Intention)
+        .where(Intention.id == intention_id, Intention.user_id == user_id)
+        .with_for_update()
+    )
+    if intention is None:
+        raise LookupError
+    if intention.status != "active":
+        raise ValueError("only an active Intention can defer reflection")
+    if not is_reflection_due(intention, now):
+        raise ValueError("reflection is not due")
+    intention.reflection_deferred_until = now + timedelta(days=intention.reflection_after_days)
+    await db.flush()
+    return intention

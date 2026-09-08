@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Response, status
 from sqlalchemy import select, update
@@ -13,15 +14,22 @@ from app.schemas.intentions import (
     OutcomeResponse,
     TechniqueSnapshot,
 )
-from app.services.intentions import build_statement, create_draft, create_outcome
+from app.services.intentions import (
+    build_statement,
+    create_draft,
+    create_outcome,
+    defer_reflection,
+    is_reflection_due,
+)
 
 router = APIRouter(prefix="/intentions", tags=["intentions"])
 
 
-def to_response(intention: Intention) -> IntentionResponse:
+def to_response(intention: Intention, now: datetime | None = None) -> IntentionResponse:
+    current_time = now or now_utc()
     observation_day = None
     if intention.activated_at is not None:
-        observation_day = max(1, (now_utc() - intention.activated_at).days + 1)
+        observation_day = max(1, (current_time - intention.activated_at).days + 1)
     return IntentionResponse(
         id=intention.id,
         status=intention.status,
@@ -41,6 +49,7 @@ def to_response(intention: Intention) -> IntentionResponse:
         ),
         activated_at=intention.activated_at,
         observation_day=observation_day,
+        reflection_due=is_reflection_due(intention, current_time),
     )
 
 
@@ -187,6 +196,41 @@ async def create_intention_outcome(
     await db.refresh(outcome)
     response.headers["Cache-Control"] = "no-store"
     return outcome_to_response(outcome)
+
+
+@router.post(
+    "/{intention_id}/reflection-deferral",
+    response_model=IntentionResponse,
+    responses={
+        404: {"description": "Intention not found"},
+        409: {"description": "Reflection is not due or Intention is not active"},
+    },
+    operation_id="deferIntentionReflection",
+)
+async def defer_intention_reflection(
+    intention_id: uuid.UUID,
+    response: Response,
+    db: Database,
+    auth: CsrfProtectedAuth,
+) -> IntentionResponse:
+    current_time = now_utc()
+    try:
+        intention = await defer_reflection(
+            db,
+            user_id=auth.user.id,
+            intention_id=intention_id,
+            now=current_time,
+        )
+    except LookupError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Intention not found"
+        ) from error
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    await db.commit()
+    await db.refresh(intention)
+    response.headers["Cache-Control"] = "no-store"
+    return to_response(intention, now=current_time)
 
 
 @router.get(

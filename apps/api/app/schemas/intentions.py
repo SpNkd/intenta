@@ -48,6 +48,7 @@ class IntentionResponse(BaseModel):
     technique: TechniqueSnapshot
     activated_at: datetime | None
     observation_day: int | None
+    reflection_due: bool
 
 
 class OutcomeInput(BaseModel):

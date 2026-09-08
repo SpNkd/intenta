@@ -7,12 +7,15 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   replace: vi.fn(),
   mode: "happened",
+  resolution: null as string | null,
 }));
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ intentionId: "intention-id" }),
   useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
-  useSearchParams: () => ({ get: () => mocks.mode }),
+  useSearchParams: () => ({
+    get: (key: string) => (key === "mode" ? mocks.mode : mocks.resolution),
+  }),
 }));
 
 vi.mock("@intenta/api-client", () => ({
@@ -33,6 +36,7 @@ describe("OutcomeScreen", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.mode = "happened";
+    mocks.resolution = null;
     mocks.get.mockImplementation((path: string) =>
       Promise.resolve(
         path === "/api/v1/intentions/{intention_id}"
@@ -83,7 +87,7 @@ describe("OutcomeScreen", () => {
       ),
     );
     expect(
-      screen.getByRole("heading", { name: "Результат сохранён" }),
+      await screen.findByRole("heading", { name: "Результат сохранён" }),
     ).toBeInTheDocument();
     fireEvent.click(
       screen.getByRole("button", { name: "Продолжить эксперимент" }),
@@ -104,5 +108,19 @@ describe("OutcomeScreen", () => {
     expect(
       screen.getByText("Сохраним это как результат твоего эксперимента."),
     ).toBeInTheDocument();
+  });
+
+  it("uses a reflection-selected closure resolution", async () => {
+    mocks.mode = "close";
+    mocks.resolution = "uncertain";
+    render(<OutcomeScreen />);
+    expect(
+      await screen.findByText(
+        "Сохраним это как результат твоего эксперимента.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Ничего не произошло" }),
+    ).toBeNull();
   });
 });

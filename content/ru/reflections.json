@@ -2,5 +2,13 @@
   "schema_version": 1,
   "locale": "ru",
   "namespace": "reflections",
-  "data": {}
+  "data": {
+    "title": "Как прошло наблюдение?",
+    "description": "Если хочешь, можно спокойно зафиксировать то, что произошло. Или продолжить наблюдение.",
+    "happened_action": "Да",
+    "not_happened_action": "Нет",
+    "uncertain_action": "Не уверен",
+    "continue_action": "Продолжить наблюдение",
+    "deferral_error": "Не получилось отложить вопрос. Попробуй ещё раз."
+  }
 }

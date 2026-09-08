@@ -176,6 +176,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/intentions/{intention_id}/reflection-deferral": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Defer Intention Reflection */
+        post: operations["deferIntentionReflection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -338,6 +355,8 @@ export interface components {
             observation_day: number | null;
             /** Reflection After Days */
             reflection_after_days: number;
+            /** Reflection Due */
+            reflection_due: boolean;
             /** Statement Template Key */
             statement_template_key: string;
             /** Statement Template Version */
@@ -838,6 +857,53 @@ export interface operations {
                 content?: never;
             };
             /** @description Intention is not active */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deferIntentionReflection: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                intention_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntentionResponse"];
+                };
+            };
+            /** @description Intention not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Reflection is not due or Intention is not active */
             409: {
                 headers: {
                     [name: string]: unknown;

@@ -168,6 +168,10 @@
             "title": "Reflection After Days",
             "type": "integer"
           },
+          "reflection_due": {
+            "title": "Reflection Due",
+            "type": "boolean"
+          },
           "statement_template_key": {
             "title": "Statement Template Key",
             "type": "string"
@@ -201,7 +205,8 @@
           "statement_template_version",
           "technique",
           "activated_at",
-          "observation_day"
+          "observation_day",
+          "reflection_due"
         ],
         "title": "IntentionResponse",
         "type": "object"
@@ -1079,6 +1084,71 @@
           }
         },
         "summary": "Create Intention Outcome",
+        "tags": [
+          "intentions"
+        ]
+      }
+    },
+    "/api/v1/intentions/{intention_id}/reflection-deferral": {
+      "post": {
+        "operationId": "deferIntentionReflection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "intention_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Intention Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntentionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Intention not found"
+          },
+          "409": {
+            "description": "Reflection is not due or Intention is not active"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Defer Intention Reflection",
         "tags": [
           "intentions"
         ]

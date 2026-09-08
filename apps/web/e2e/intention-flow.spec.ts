@@ -201,6 +201,72 @@ test("the last completed step leads to the terminal experiment state", async ({
   await checkAndCapture(page, "13-experiment-completed");
 });
 
+test("a due reflection can be deferred or saved through the existing Outcome flow", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Попробовать" }).click();
+  for (let step = 0; step < 3; step += 1) {
+    await page.getByRole("button", { name: "Дальше" }).click();
+  }
+  await page.getByRole("button", { name: "Начать" }).click();
+  await expect(page.getByRole("heading", { name: "500 ₽" })).toBeVisible();
+
+  const csrfResponse = await page.request.get("/api/v1/auth/csrf");
+  const { csrf_token: csrfToken } = await csrfResponse.json();
+  const headers = {
+    Origin: new URL(page.url()).origin,
+    "X-CSRF-Token": csrfToken,
+  };
+  const draft = await page.request.post("/api/v1/intentions", {
+    data: { intention_text_raw: "Куплю себе книгу" },
+    headers,
+  });
+  const intention = await draft.json();
+  expect(
+    (
+      await page.request.post(`/api/v1/intentions/${intention.id}/activation`, {
+        headers,
+      })
+    ).ok(),
+  ).toBe(true);
+  const active = await (
+    await page.request.get("/api/v1/intentions/current")
+  ).json();
+
+  await page.route("**/api/v1/intentions/current", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ ...active, reflection_due: true }),
+    });
+  });
+  await page.route(
+    `**/api/v1/intentions/${intention.id}/reflection-deferral`,
+    async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ ...active, reflection_due: false }),
+      });
+    },
+  );
+  await page.goto("/home");
+  await expect(
+    page.getByRole("heading", { name: "Как прошло наблюдение?" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Продолжить наблюдение" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Как прошло наблюдение?" }),
+  ).toHaveCount(0);
+
+  await page.reload();
+  await page.getByRole("button", { name: "Не уверен" }).click();
+  await expect(page).toHaveURL(/mode=close&resolution=uncertain/);
+  await page.getByRole("button", { name: "Сохранить результат" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Результат сохранён" }),
+  ).toBeVisible();
+});
+
 test("neutral closure saves an uncertain Outcome", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Попробовать" }).click();

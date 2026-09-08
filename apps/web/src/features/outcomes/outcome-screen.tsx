@@ -56,11 +56,16 @@ export function OutcomeScreen() {
   const [intention, setIntention] = useState<Intention | null>(null);
   const [outcome, setOutcome] = useState<SavedOutcome | null>(null);
   const [csrf, setCsrf] = useState("");
+  const requestedResolution = searchParams.get("resolution");
+  const initialCloseResolution =
+    requestedResolution === "uncertain" ? "uncertain" : "not_happened";
   const [resolution, setResolution] = useState<
     "happened" | "not_happened" | "uncertain"
-  >(searchParams.get("mode") === "close" ? "not_happened" : "happened");
+  >(searchParams.get("mode") === "close" ? initialCloseResolution : "happened");
   const [closeChosen, setCloseChosen] = useState(
-    searchParams.get("mode") !== "close",
+    searchParams.get("mode") !== "close" ||
+      requestedResolution === "not_happened" ||
+      requestedResolution === "uncertain",
   );
   const [eventType, setEventType] =
     useState<OutcomeInput["outcome_type"]>("money");
