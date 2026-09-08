@@ -29,11 +29,23 @@ from app.services.intentions import (
 router = APIRouter(prefix="/intentions", tags=["intentions"])
 
 
+def observation_days_for_intention(intention: Intention, now: datetime) -> int | None:
+    if intention.activated_at is None:
+        return None
+    if intention.status == "completed":
+        if intention.completed_at is None:
+            return None
+        end_time = intention.completed_at
+    elif intention.status == "active":
+        end_time = now
+    else:
+        return None
+    return max(1, (end_time - intention.activated_at).days + 1)
+
+
 def to_response(intention: Intention, now: datetime | None = None) -> IntentionResponse:
     current_time = now or now_utc()
-    observation_day = None
-    if intention.activated_at is not None:
-        observation_day = max(1, (current_time - intention.activated_at).days + 1)
+    observation_days = observation_days_for_intention(intention, current_time)
     return IntentionResponse(
         id=intention.id,
         status=intention.status,
@@ -52,27 +64,15 @@ def to_response(intention: Intention, now: datetime | None = None) -> IntentionR
             instruction=intention.technique_instruction,
         ),
         activated_at=intention.activated_at,
-        observation_day=observation_day,
+        completed_at=intention.completed_at,
+        observation_day=observation_days,
+        observation_days=observation_days,
         reflection_due=is_reflection_due(intention, current_time),
     )
 
 
 def outcome_to_response(outcome: Outcome) -> OutcomeResponse:
     return OutcomeResponse.model_validate(outcome)
-
-
-def observation_days_for_history(intention: Intention, now: datetime) -> int | None:
-    if intention.activated_at is None:
-        return None
-    if intention.status == "completed":
-        if intention.completed_at is None:
-            return None
-        end_time = intention.completed_at
-    elif intention.status == "active":
-        end_time = now
-    else:
-        return None
-    return max(1, (end_time - intention.activated_at).days + 1)
 
 
 def encode_history_cursor(created_at: datetime, intention_id: uuid.UUID) -> str:
@@ -145,7 +145,7 @@ async def list_intentions(
             currency=intention.currency,
             intention_text_raw=intention.intention_text_raw,
             completed_at=intention.completed_at,
-            observation_days=observation_days_for_history(intention, current_time),
+            observation_days=observation_days_for_intention(intention, current_time),
             outcome_resolution=outcome_resolution,
         )
         for intention, outcome_resolution in page_rows

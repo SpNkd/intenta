@@ -132,11 +132,13 @@ test("replacement recovery code restores the same active Intention", async ({
   await expect(page).toHaveURL(/\/history$/);
   await expect(page.getByRole("heading", { name: "История" })).toBeVisible();
   await expect(page.getByText("Куплю себе хорошие наушники.")).toBeVisible();
-  await page.goBack();
-  await expect(
-    page.getByRole("heading", { name: "Результат сохранён" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Продолжить эксперимент" }).click();
+  await page.getByText("Куплю себе хорошие наушники.").click();
+  await expect(page).toHaveURL(/\/history\//);
+  await expect(page.getByText("Остановись на минуту")).toBeVisible();
+  await expect(page.getByText("Неожиданный подарок.")).toBeVisible();
+  await page.getByRole("link", { name: /К истории/ }).click();
+  await expect(page).toHaveURL(/\/history$/);
+  await page.goto("/intention");
   await expect(page).toHaveURL(/\/intention$/);
   await expect(page.getByRole("heading", { name: "1 000 ₽" })).toBeVisible();
   await page.getByRole("button", { name: "Продолжить" }).click();

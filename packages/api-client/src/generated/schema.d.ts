@@ -373,6 +373,8 @@ export interface components {
             activated_at: string | null;
             /** Amount Minor */
             amount_minor: number;
+            /** Completed At */
+            completed_at: string | null;
             /** Currency */
             currency: string;
             /**
@@ -386,6 +388,8 @@ export interface components {
             intention_text_raw: string;
             /** Observation Day */
             observation_day: number | null;
+            /** Observation Days */
+            observation_days: number | null;
             /** Reflection After Days */
             reflection_after_days: number;
             /** Reflection Due */

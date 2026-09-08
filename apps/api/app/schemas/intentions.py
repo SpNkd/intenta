@@ -47,7 +47,9 @@ class IntentionResponse(BaseModel):
     statement_template_version: int
     technique: TechniqueSnapshot
     activated_at: datetime | None
+    completed_at: datetime | None
     observation_day: int | None
+    observation_days: int | None
     reflection_due: bool
 
 

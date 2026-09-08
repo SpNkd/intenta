@@ -246,6 +246,18 @@
             "title": "Amount Minor",
             "type": "integer"
           },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
           "currency": {
             "title": "Currency",
             "type": "string"
@@ -273,6 +285,17 @@
               }
             ],
             "title": "Observation Day"
+          },
+          "observation_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observation Days"
           },
           "reflection_after_days": {
             "title": "Reflection After Days",
@@ -315,7 +338,9 @@
           "statement_template_version",
           "technique",
           "activated_at",
+          "completed_at",
           "observation_day",
+          "observation_days",
           "reflection_due"
         ],
         "title": "IntentionResponse",

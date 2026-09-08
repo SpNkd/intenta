@@ -18,6 +18,17 @@
     "observation_days_label": "Наблюдение: {days} дн.",
     "active_days_label": "День {days}",
     "nav_intention": "Интента",
-    "nav_history": "История"
+    "nav_history": "История",
+    "back_action": "К истории",
+    "detail_title": "Интента",
+    "intention_label": "Намерение",
+    "statement_label": "Записанный текст",
+    "technique_label": "Использованная техника",
+    "activated_label": "Активирована {date}",
+    "not_activated_label": "Пока не активирована",
+    "outcome_title": "Результат",
+    "outcome_pending": "Результат ещё не сохранён.",
+    "detail_load_error": "Не получилось загрузить Интенту. Попробуй ещё раз.",
+    "occurred_label": "Дата события"
   }
 }

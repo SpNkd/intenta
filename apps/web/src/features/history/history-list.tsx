@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "@intenta/api-client";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { MainNavigation } from "../../components/main-navigation";
@@ -98,8 +99,9 @@ export function HistoryList() {
       ) : (
         <section className="mt-8 space-y-3" aria-label={content.history.title}>
           {items.map((item) => (
-            <article
+            <Link
               key={item.id}
+              href={`/history/${item.id}`}
               className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"
             >
               <div className="flex items-baseline justify-between gap-4">
@@ -133,7 +135,7 @@ export function HistoryList() {
                   </p>
                 ) : null}
               </div>
-            </article>
+            </Link>
           ))}
           {nextCursor ? (
             <button
