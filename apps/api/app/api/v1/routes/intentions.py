@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 import base64
 import json
 import uuid
@@ -96,7 +97,12 @@ def decode_history_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
         ) from error
 
 
-@router.get("/current", response_model=IntentionResponse | None, operation_id="getCurrentIntention")
+@router.get(
+    "/current",
+    response_model=IntentionResponse | None,
+    responses={401: {"description": "Authentication required"}},
+    operation_id="getCurrentIntention",
+)
 async def get_current(
     response: Response, db: Database, auth: CurrentAuth
 ) -> IntentionResponse | None:
@@ -110,7 +116,12 @@ async def get_current(
     return to_response(intention) if intention else None
 
 
-@router.get("", response_model=HistoryPageResponse, operation_id="listIntentions")
+@router.get(
+    "",
+    response_model=HistoryPageResponse,
+    responses={401: {"description": "Authentication required"}},
+    operation_id="listIntentions",
+)
 async def list_intentions(
     response: Response,
     db: Database,
@@ -158,7 +169,15 @@ async def list_intentions(
     return HistoryPageResponse(items=items, next_cursor=next_cursor)
 
 
-@router.get("/{intention_id}", response_model=IntentionResponse, operation_id="getIntention")
+@router.get(
+    "/{intention_id}",
+    response_model=IntentionResponse,
+    responses={
+        401: {"description": "Authentication required"},
+        404: {"description": "Intention not found"},
+    },
+    operation_id="getIntention",
+)
 async def get_intention(
     intention_id: uuid.UUID, response: Response, db: Database, auth: CurrentAuth
 ) -> IntentionResponse:
@@ -171,7 +190,17 @@ async def get_intention(
     return to_response(intention)
 
 
-@router.post("", response_model=IntentionResponse, status_code=201, operation_id="createIntention")
+@router.post(
+    "",
+    response_model=IntentionResponse,
+    status_code=201,
+    responses={
+        401: {"description": "Authentication required"},
+        403: {"description": "CSRF token or request origin is invalid"},
+        409: {"description": "No experiment step is available"},
+    },
+    operation_id="createIntention",
+)
 async def create_intention(
     payload: IntentionInput, response: Response, db: Database, auth: CsrfProtectedAuth
 ) -> IntentionResponse:

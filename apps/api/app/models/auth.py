@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 import uuid
 from datetime import datetime
 
@@ -64,7 +65,10 @@ class Session(Base):
 
 class Technique(Base):
     __tablename__ = "techniques"
-    __table_args__ = (UniqueConstraint("key", "version", name="uq_technique_key_version"),)
+    __table_args__ = (
+        UniqueConstraint("key", "version", name="uq_technique_key_version"),
+        CheckConstraint("version > 0", name="ck_technique_version_positive"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     key: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -80,6 +84,11 @@ class Technique(Base):
 
 class ExperimentStep(Base):
     __tablename__ = "experiment_steps"
+    __table_args__ = (
+        CheckConstraint("position > 0", name="ck_step_position_positive"),
+        CheckConstraint("amount_minor > 0", name="ck_step_amount_positive"),
+        CheckConstraint("reflection_after_days > 0", name="ck_step_reflection_days_positive"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     position: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
@@ -111,6 +120,14 @@ class Intention(Base):
         CheckConstraint(
             "status IN ('draft', 'active', 'completed', 'cancelled')",
             name="ck_intention_status",
+        ),
+        CheckConstraint(
+            "step_position > 0 AND amount_minor > 0 AND reflection_after_days > 0 AND statement_template_version > 0 AND technique_version > 0",
+            name="ck_intention_positive_snapshots",
+        ),
+        CheckConstraint(
+            "(status = 'draft' AND activated_at IS NULL AND completed_at IS NULL) OR (status = 'active' AND activated_at IS NOT NULL AND completed_at IS NULL) OR (status IN ('completed', 'cancelled') AND activated_at IS NOT NULL AND completed_at IS NOT NULL)",
+            name="ck_intention_status_timestamps",
         ),
     )
 

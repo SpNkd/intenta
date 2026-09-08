@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import { api } from "@intenta/api-client";
 import { useRouter } from "next/navigation";
@@ -6,6 +7,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 import { content } from "../../lib/content";
 import { MainNavigation } from "../../components/main-navigation";
+import { isUnauthorized } from "../../lib/private-request";
 
 function amountLabel(amountMinor: number, currency: string) {
   const value = new Intl.NumberFormat("ru-RU").format(amountMinor / 100);
@@ -30,16 +32,24 @@ export function IntentionEntry() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    let active = true;
-    void Promise.all([
-      api.GET("/api/v1/me"),
-      api.GET("/api/v1/auth/csrf"),
-      api.GET("/api/v1/intentions/current"),
-      api.GET("/api/v1/experiment/next"),
-    ]).then(([me, csrfResponse, current, next]) => {
-      if (!active) return;
-      if (!me.data) return router.replace("/");
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      const [me, csrfResponse, current, next] = await Promise.all([
+        api.GET("/api/v1/me"),
+        api.GET("/api/v1/auth/csrf"),
+        api.GET("/api/v1/intentions/current"),
+        api.GET("/api/v1/experiment/next"),
+      ]);
+      if (
+        isUnauthorized(me) ||
+        isUnauthorized(csrfResponse) ||
+        isUnauthorized(current) ||
+        isUnauthorized(next)
+      )
+        return router.replace("/");
+      if (!me.data) return setError(content.requestError);
       if (!me.data.onboarding_completed) return router.replace("/onboarding");
       if (csrfResponse.data) setCsrf(csrfResponse.data.csrf_token);
       if (current.data) {
@@ -54,12 +64,17 @@ export function IntentionEntry() {
       } else {
         setError(content.requestError);
       }
+    } catch {
+      setError(content.requestError);
+    } finally {
       setLoading(false);
-    });
-    return () => {
-      active = false;
-    };
-  }, [router]);
+    }
+  }
+  useEffect(() => {
+    void load();
+    // The initial private-state lookup runs once; retries are explicit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -122,8 +137,18 @@ export function IntentionEntry() {
 
   if (!step) {
     return (
-      <main className="grid min-h-dvh place-items-center px-5 text-center text-sm text-[var(--error)]">
-        {error || content.requestError}
+      <main className="grid min-h-dvh place-items-center px-5 text-center">
+        <div>
+          <p role="alert" className="text-sm text-[var(--error)]">
+            {error || content.requestError}
+          </p>
+          <button
+            onClick={() => void load()}
+            className="mt-4 min-h-11 text-sm text-[var(--muted)]"
+          >
+            {content.retryAction}
+          </button>
+        </div>
       </main>
     );
   }

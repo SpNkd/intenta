@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 import uuid
 from datetime import datetime
 
@@ -14,6 +15,10 @@ class Outcome(Base):
         CheckConstraint(
             "resolution IN ('happened', 'not_happened', 'uncertain')",
             name="ck_outcome_resolution",
+        ),
+        CheckConstraint(
+            "(resolution = 'happened' AND outcome_type <> 'none' AND was_expected <> 'not_applicable' AND followed_original_intention <> 'not_applicable') OR (resolution IN ('not_happened', 'uncertain') AND outcome_type = 'none' AND source_type IS NULL AND amount_received_minor IS NULL AND was_expected = 'not_applicable' AND followed_original_intention = 'not_applicable' AND occurred_at IS NULL)",
+            name="ck_outcome_resolution_fields",
         ),
         CheckConstraint(
             "outcome_type IN ('money', 'other_amount', 'opportunity', 'similar', 'other', 'none')",

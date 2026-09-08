@@ -1,11 +1,14 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
 import { api } from "@intenta/api-client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { MainNavigation } from "../../components/main-navigation";
 import { content } from "../../lib/content";
+import { isUnauthorized } from "../../lib/private-request";
 
 type HistoryItem = {
   id: string;
@@ -34,36 +37,37 @@ function statusLabel(item: HistoryItem): string {
 }
 
 export function HistoryList() {
+  const router = useRouter();
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
 
-  async function load(cursor?: string) {
-    const { data } = await api.GET("/api/v1/intentions", {
-      params: cursor ? { query: { cursor } } : undefined,
-    });
-    if (!data) {
+  async function load(cursor?: string): Promise<boolean> {
+    try {
+      const result = await api.GET("/api/v1/intentions", {
+        params: cursor ? { query: { cursor } } : undefined,
+      });
+      if (!result.data) {
+        if (isUnauthorized(result)) router.replace("/");
+        else setError(content.history.load_error);
+        return false;
+      }
+      setItems((current) =>
+        cursor ? [...current, ...result.data.items] : result.data.items,
+      );
+      setNextCursor(result.data.next_cursor);
+      return true;
+    } catch {
       setError(content.history.load_error);
-      return;
+      return false;
     }
-    setItems((current) => (cursor ? [...current, ...data.items] : data.items));
-    setNextCursor(data.next_cursor);
   }
 
   useEffect(() => {
     let active = true;
-    void api.GET("/api/v1/intentions").then(({ data }) => {
-      if (!active) return;
-      if (!data) {
-        setError(content.history.load_error);
-      } else {
-        setItems(data.items);
-        setNextCursor(data.next_cursor);
-      }
-      setLoading(false);
-    });
+    void load().finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
@@ -149,9 +153,19 @@ export function HistoryList() {
         </section>
       )}
       {error ? (
-        <p role="alert" className="mt-4 text-sm text-[var(--error)]">
-          {error}
-        </p>
+        <div className="mt-4" role="alert">
+          <p className="text-sm text-[var(--error)]">{error}</p>
+          <button
+            onClick={() => {
+              setError("");
+              setLoading(true);
+              void load().finally(() => setLoading(false));
+            }}
+            className="mt-3 min-h-11 text-sm text-[var(--muted)]"
+          >
+            {content.retryAction}
+          </button>
+        </div>
       ) : null}
       <MainNavigation />
     </main>

@@ -398,8 +398,11 @@ export interface components {
             statement_template_key: string;
             /** Statement Template Version */
             statement_template_version: number;
-            /** Status */
-            status: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "draft" | "active" | "completed" | "cancelled";
             /** Step Position */
             step_position: number;
             technique: components["schemas"]["TechniqueSnapshot"];
@@ -468,8 +471,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /** Followed Original Intention */
-            followed_original_intention: string;
+            /**
+             * Followed Original Intention
+             * @enum {string}
+             */
+            followed_original_intention: "yes" | "not_yet" | "chose_other" | "did_not_spend" | "not_applicable";
             /**
              * Id
              * Format: uuid
@@ -482,16 +488,25 @@ export interface components {
             intention_id: string;
             /** Occurred At */
             occurred_at: string | null;
-            /** Outcome Type */
-            outcome_type: string;
-            /** Resolution */
-            resolution: string;
+            /**
+             * Outcome Type
+             * @enum {string}
+             */
+            outcome_type: "money" | "other_amount" | "opportunity" | "similar" | "other" | "none";
+            /**
+             * Resolution
+             * @enum {string}
+             */
+            resolution: "happened" | "not_happened" | "uncertain";
             /** Source Type */
-            source_type: string | null;
+            source_type: ("gift" | "refund" | "bonus_or_cashback" | "extra_income" | "found_money" | "saving_or_discount" | "other") | null;
             /** User Note */
             user_note: string | null;
-            /** Was Expected */
-            was_expected: string;
+            /**
+             * Was Expected
+             * @enum {string}
+             */
+            was_expected: "yes" | "no" | "unsure" | "not_applicable";
         };
         /** RecoveryAcknowledgementResponse */
         RecoveryAcknowledgementResponse: {
@@ -687,6 +702,13 @@ export interface operations {
                     "application/json": components["schemas"]["HistoryPageResponse"];
                 };
             };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -722,6 +744,27 @@ export interface operations {
                     "application/json": components["schemas"]["IntentionResponse"];
                 };
             };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description CSRF token or request origin is invalid */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No experiment step is available */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -751,6 +794,13 @@ export interface operations {
                     "application/json": components["schemas"]["IntentionResponse"] | null;
                 };
             };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     getIntention: {
@@ -772,6 +822,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["IntentionResponse"];
                 };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Intention not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

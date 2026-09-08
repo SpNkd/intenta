@@ -1,46 +1,16 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
-import { api } from "@intenta/api-client";
+import { api, type components } from "@intenta/api-client";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { content } from "../../lib/content";
+import { isUnauthorized } from "../../lib/private-request";
 
-type IntentionDetail = {
-  id: string;
-  status: "draft" | "active" | "completed" | "cancelled";
-  amount_minor: number;
-  currency: string;
-  intention_text_raw: string;
-  intention_statement: string;
-  technique: { title: string; instruction: string };
-  activated_at: string | null;
-  completed_at: string | null;
-  observation_days: number | null;
-};
-
-type Outcome = {
-  resolution: "happened" | "not_happened" | "uncertain";
-  outcome_type:
-    "money" | "other_amount" | "opportunity" | "similar" | "other" | "none";
-  source_type:
-    | "gift"
-    | "refund"
-    | "bonus_or_cashback"
-    | "extra_income"
-    | "found_money"
-    | "saving_or_discount"
-    | "other"
-    | null;
-  amount_received_minor: number | null;
-  was_expected: "yes" | "no" | "unsure" | "not_applicable";
-  followed_original_intention:
-    "yes" | "not_yet" | "chose_other" | "did_not_spend" | "not_applicable";
-  user_note: string | null;
-  occurred_at: string | null;
-  created_at: string;
-};
+type IntentionDetail = components["schemas"]["IntentionResponse"];
+type Outcome = components["schemas"]["OutcomeResponse"];
 
 const amountLabel = (amountMinor: number, currency: string) =>
   `${new Intl.NumberFormat("ru-RU").format(amountMinor / 100)} ${currency === "RUB" ? "₽" : currency}`;
@@ -91,33 +61,38 @@ export function HistoryDetail() {
   const [intention, setIntention] = useState<IntentionDetail | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [error, setError] = useState("");
+  const [outcomeError, setOutcomeError] = useState("");
 
-  useEffect(() => {
-    let active = true;
-    void api
-      .GET("/api/v1/intentions/{intention_id}", {
+  async function load() {
+    setError("");
+    setOutcomeError("");
+    try {
+      const result = await api.GET("/api/v1/intentions/{intention_id}", {
         params: { path: { intention_id: intentionId } },
-      })
-      .then(async ({ data }) => {
-        if (!active) return;
-        if (!data) {
-          setError(content.history.detail_load_error);
-          return;
-        }
-        setIntention(data as IntentionDetail);
-        if (data.status === "completed") {
-          const saved = await api.GET(
-            "/api/v1/intentions/{intention_id}/outcome",
-            {
-              params: { path: { intention_id: intentionId } },
-            },
-          );
-          if (active && saved.data) setOutcome(saved.data as Outcome);
-        }
       });
-    return () => {
-      active = false;
-    };
+      if (!result.data) {
+        if (isUnauthorized(result)) router.replace("/");
+        else setError(content.history.detail_load_error);
+        return;
+      }
+      setIntention(result.data);
+      if (result.data.status === "completed") {
+        const saved = await api.GET(
+          "/api/v1/intentions/{intention_id}/outcome",
+          {
+            params: { path: { intention_id: intentionId } },
+          },
+        );
+        if (saved.data) setOutcome(saved.data);
+        else if (isUnauthorized(saved)) router.replace("/");
+        else setOutcomeError(content.history.outcome_load_error);
+      }
+    } catch {
+      setError(content.history.detail_load_error);
+    }
+  }
+  useEffect(() => {
+    void load();
   }, [intentionId]);
 
   if (error) {
@@ -131,6 +106,12 @@ export function HistoryDetail() {
           onClick={() => router.push("/history")}
         >
           {content.history.back_action}
+        </button>
+        <button
+          className="mt-2 text-sm text-[var(--muted)]"
+          onClick={() => void load()}
+        >
+          {content.retryAction}
         </button>
       </main>
     );
@@ -257,6 +238,18 @@ export function HistoryDetail() {
             <p className="text-sm text-[var(--muted)]">
               {content.outcomes.summary_date_label}: {date(outcome.created_at)}
             </p>
+          </div>
+        ) : outcomeError ? (
+          <div className="mt-3">
+            <p role="alert" className="text-sm text-[var(--error)]">
+              {outcomeError}
+            </p>
+            <button
+              onClick={() => void load()}
+              className="mt-3 min-h-11 text-sm text-[var(--muted)]"
+            >
+              {content.retryAction}
+            </button>
           </div>
         ) : (
           <p className="mt-3 leading-7 text-[var(--muted)]">

@@ -314,6 +314,12 @@
             "type": "integer"
           },
           "status": {
+            "enum": [
+              "draft",
+              "active",
+              "completed",
+              "cancelled"
+            ],
             "title": "Status",
             "type": "string"
           },
@@ -524,6 +530,13 @@
             "type": "string"
           },
           "followed_original_intention": {
+            "enum": [
+              "yes",
+              "not_yet",
+              "chose_other",
+              "did_not_spend",
+              "not_applicable"
+            ],
             "title": "Followed Original Intention",
             "type": "string"
           },
@@ -550,16 +563,38 @@
             "title": "Occurred At"
           },
           "outcome_type": {
+            "enum": [
+              "money",
+              "other_amount",
+              "opportunity",
+              "similar",
+              "other",
+              "none"
+            ],
             "title": "Outcome Type",
             "type": "string"
           },
           "resolution": {
+            "enum": [
+              "happened",
+              "not_happened",
+              "uncertain"
+            ],
             "title": "Resolution",
             "type": "string"
           },
           "source_type": {
             "anyOf": [
               {
+                "enum": [
+                  "gift",
+                  "refund",
+                  "bonus_or_cashback",
+                  "extra_income",
+                  "found_money",
+                  "saving_or_discount",
+                  "other"
+                ],
                 "type": "string"
               },
               {
@@ -580,6 +615,12 @@
             "title": "User Note"
           },
           "was_expected": {
+            "enum": [
+              "yes",
+              "no",
+              "unsure",
+              "not_applicable"
+            ],
             "title": "Was Expected",
             "type": "string"
           }
@@ -893,6 +934,9 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Authentication required"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -950,6 +994,15 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "CSRF token or request origin is invalid"
+          },
+          "409": {
+            "description": "No experiment step is available"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -988,6 +1041,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentication required"
           }
         },
         "summary": "Get Current",
@@ -1021,6 +1077,12 @@
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Intention not found"
           },
           "422": {
             "content": {

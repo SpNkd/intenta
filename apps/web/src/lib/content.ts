@@ -25,6 +25,7 @@ export const content = {
   recoverSubmit: requiredText("recover_submit"),
   recoverError: requiredText("recover_error"),
   requestError: requiredText("request_error"),
+  retryAction: requiredText("retry_action"),
   backAction: requiredText("back_action"),
   nextAction: requiredText("next_action"),
   startAction: requiredText("start_action"),

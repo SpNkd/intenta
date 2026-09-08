@@ -1,10 +1,12 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import { api } from "@intenta/api-client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { MainNavigation } from "../../components/main-navigation";
 import { content } from "../../lib/content";
+import { isUnauthorized } from "../../lib/private-request";
 
 type Active = {
   id: string;
@@ -24,18 +26,34 @@ export function ActiveHome() {
   const [csrf, setCsrf] = useState("");
   const [deferring, setDeferring] = useState(false);
   const [deferralError, setDeferralError] = useState("");
-  useEffect(() => {
-    void Promise.all([
-      api.GET("/api/v1/intentions/current"),
-      api.GET("/api/v1/auth/csrf"),
-    ]).then(([current, csrfResponse]) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      const [current, csrfResponse] = await Promise.all([
+        api.GET("/api/v1/intentions/current"),
+        api.GET("/api/v1/auth/csrf"),
+      ]);
+      if (isUnauthorized(current) || isUnauthorized(csrfResponse))
+        return router.replace("/");
       const data = current.data;
-      if (!data) router.replace("/intention");
-      else if (data.status !== "active") router.replace("/intention/paper");
-      else setIntention(data);
+      if (!data) return router.replace("/intention");
+      if (data.status !== "active") return router.replace("/intention/paper");
+      setIntention(data);
       if (csrfResponse.data) setCsrf(csrfResponse.data.csrf_token);
-    });
-  }, [router]);
+    } catch {
+      setError(content.requestError);
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => {
+    void load();
+    // The initial private-state lookup runs once; retries are explicit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   async function defer() {
     if (!intention) return;
     setDeferring(true);
@@ -55,12 +73,29 @@ export function ActiveHome() {
     setIntention(data);
     setDeferring(false);
   }
-  if (!intention)
+  if (loading)
     return (
       <main className="grid min-h-dvh place-items-center text-sm text-[var(--muted)]">
         {content.loading}
       </main>
     );
+  if (error)
+    return (
+      <main className="grid min-h-dvh place-items-center px-5 text-center">
+        <div>
+          <p role="alert" className="text-sm text-[var(--error)]">
+            {error}
+          </p>
+          <button
+            onClick={() => void load()}
+            className="mt-4 min-h-11 text-sm text-[var(--muted)]"
+          >
+            {content.retryAction}
+          </button>
+        </div>
+      </main>
+    );
+  if (!intention) return null;
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col px-5 py-8 sm:px-7">
       <p className="text-xs font-semibold tracking-[0.28em] text-[var(--muted)]">

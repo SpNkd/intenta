@@ -71,6 +71,30 @@ class IntentionContent(BaseModel):
         return self
 
 
+class MessageContent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+REQUIRED_MESSAGE_KEYS = {
+    "activation": {
+        "activate_action",
+        "created_title",
+        "created_description",
+        "happened_action",
+        "finish_action",
+    },
+    "outcomes": {
+        "happened_title",
+        "expected_label",
+        "spending_label",
+        "save_action",
+        "summary_title",
+    },
+    "reflections": {"title", "description", "continue_action", "deferral_error"},
+    "history": {"title", "load_error", "detail_load_error", "outcome_title", "back_action"},
+}
+
+
 class ContentCatalog:
     def __init__(self, documents: dict[str, ContentDocument]) -> None:
         self._documents = documents
@@ -90,6 +114,16 @@ class ContentCatalog:
                 TechniqueList.model_validate(document.data)
             if document.namespace == "intentions":
                 IntentionContent.model_validate(document.data)
+            if document.namespace in REQUIRED_MESSAGE_KEYS:
+                if not isinstance(document.data, dict) or not REQUIRED_MESSAGE_KEYS[
+                    document.namespace
+                ].issubset(document.data):
+                    raise ValueError(f"{path}: required message keys are missing")
+            if document.namespace == "onboarding":
+                if not isinstance(document.data, list) or [
+                    item.get("key") for item in document.data if isinstance(item, dict)
+                ] != ["experiment_amount", "personal_choice", "handwritten_intention", "observe"]:
+                    raise ValueError(f"{path}: onboarding steps must match the MVP flow")
             documents[document.namespace] = document
         if not documents:
             raise ValueError(f"no content documents found in {directory}")

@@ -38,7 +38,7 @@ class IntentionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    status: str
+    status: Literal["draft", "active", "completed", "cancelled"]
     step_position: int
     amount_minor: int
     currency: str
@@ -126,12 +126,25 @@ class OutcomeResponse(BaseModel):
 
     id: uuid.UUID
     intention_id: uuid.UUID
-    resolution: str
-    outcome_type: str
-    source_type: str | None
+    resolution: Literal["happened", "not_happened", "uncertain"]
+    outcome_type: Literal["money", "other_amount", "opportunity", "similar", "other", "none"]
+    source_type: (
+        Literal[
+            "gift",
+            "refund",
+            "bonus_or_cashback",
+            "extra_income",
+            "found_money",
+            "saving_or_discount",
+            "other",
+        ]
+        | None
+    )
     amount_received_minor: int | None
-    was_expected: str
-    followed_original_intention: str
+    was_expected: Literal["yes", "no", "unsure", "not_applicable"]
+    followed_original_intention: Literal[
+        "yes", "not_yet", "chose_other", "did_not_spend", "not_applicable"
+    ]
     user_note: str | None
     occurred_at: datetime | None
     created_at: datetime
