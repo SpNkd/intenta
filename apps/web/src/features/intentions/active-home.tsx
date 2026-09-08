@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { content } from "../../lib/content";
 
 type Active = {
+  id: string;
   status: string;
   amount_minor: number;
   currency: string;
@@ -56,15 +57,13 @@ export function ActiveHome() {
         {content.activation.created_description}
       </p>
       <button
-        disabled
-        title={content.activation.outcome_unavailable}
-        className="min-h-14 rounded-full bg-[var(--foreground)] text-white opacity-55"
+        onClick={() => router.push(`/outcome/${intention.id}?mode=happened`)}
+        className="min-h-14 rounded-full bg-[var(--foreground)] text-white"
       >
         {content.activation.happened_action}
       </button>
       <button
-        disabled
-        title={content.activation.outcome_unavailable}
+        onClick={() => router.push(`/outcome/${intention.id}?mode=close`)}
         className="mt-3 min-h-12 text-sm text-[var(--muted)]"
       >
         {content.activation.finish_action}

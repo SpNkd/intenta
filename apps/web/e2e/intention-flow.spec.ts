@@ -111,6 +111,49 @@ test("replacement recovery code restores the same active Intention", async ({
   await replacementContext.close();
   await page.goto("/");
   await expect(page).toHaveURL(/\/home$/);
+  await page.getByRole("button", { name: "Кажется, случилось" }).click();
+  await expect(page).toHaveURL(/\/outcome\//);
+  await checkAndCapture(page, "11-outcome-happened");
+  await page.getByLabel("Какая сумма появилась? (необязательно)").fill("500");
+  await page
+    .getByLabel("Откуда пришло событие? (необязательно)")
+    .selectOption("gift");
+  await page.getByLabel("Заметка (необязательно)").fill("Неожиданный подарок.");
+  await page.getByRole("button", { name: "Сохранить результат" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Результат сохранён" }),
+  ).toBeVisible();
+  await expect(page.getByText("Неожиданный подарок.")).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Результат сохранён" }),
+  ).toBeVisible();
+});
+
+test("neutral closure saves an uncertain Outcome", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Попробовать" }).click();
+  for (let step = 0; step < 3; step += 1) {
+    await page.getByRole("button", { name: "Дальше" }).click();
+  }
+  await page.getByRole("button", { name: "Начать" }).click();
+  await page.getByRole("button", { name: "Продолжить" }).click();
+  await page.getByLabel("Моё намерение").fill("Куплю себе книгу.");
+  await page.getByRole("button", { name: "Сохранить намерение" }).click();
+  await page.getByRole("button", { name: "Я записал" }).click();
+  await page.getByRole("button", { name: "Создать Интенту" }).click();
+  await page.getByRole("button", { name: "Показать код" }).click();
+  await page.getByRole("button", { name: "Сделать позже" }).click();
+  await expect(page).toHaveURL(/\/home$/);
+  await page.getByRole("button", { name: "Завершить наблюдение" }).click();
+  await checkAndCapture(page, "12-outcome-closure");
+  await page.getByRole("button", { name: "Не уверен" }).click();
+  await page.getByLabel("Заметка (необязательно)").fill("Пока не уверен.");
+  await page.getByRole("button", { name: "Сохранить результат" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Результат сохранён" }),
+  ).toBeVisible();
+  await expect(page.getByText("Пока не уверен.")).toBeVisible();
 });
 
 test("invalid recovery code gets a neutral error", async ({ page }) => {

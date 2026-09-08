@@ -158,6 +158,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/intentions/{intention_id}/outcome": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Intention Outcome */
+        get: operations["getOutcome"];
+        put?: never;
+        /** Create Intention Outcome */
+        post: operations["createOutcome"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -350,6 +368,71 @@ export interface components {
             onboarding_completed: boolean;
             /** Recovery Code Acknowledged */
             recovery_code_acknowledged: boolean;
+        };
+        /** OutcomeInput */
+        OutcomeInput: {
+            /** Amount Received Minor */
+            amount_received_minor?: number | null;
+            /**
+             * Followed Original Intention
+             * @enum {string}
+             */
+            followed_original_intention: "yes" | "not_yet" | "chose_other" | "did_not_spend" | "not_applicable";
+            /** Occurred At */
+            occurred_at?: string | null;
+            /**
+             * Outcome Type
+             * @enum {string}
+             */
+            outcome_type: "money" | "other_amount" | "opportunity" | "similar" | "other" | "none";
+            /**
+             * Resolution
+             * @enum {string}
+             */
+            resolution: "happened" | "not_happened" | "uncertain";
+            /** Source Type */
+            source_type?: ("gift" | "refund" | "bonus_or_cashback" | "extra_income" | "found_money" | "saving_or_discount" | "other") | null;
+            /** User Note */
+            user_note?: string | null;
+            /**
+             * Was Expected
+             * @enum {string}
+             */
+            was_expected: "yes" | "no" | "unsure" | "not_applicable";
+        };
+        /** OutcomeResponse */
+        OutcomeResponse: {
+            /** Amount Received Minor */
+            amount_received_minor: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Followed Original Intention */
+            followed_original_intention: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Intention Id
+             * Format: uuid
+             */
+            intention_id: string;
+            /** Occurred At */
+            occurred_at: string | null;
+            /** Outcome Type */
+            outcome_type: string;
+            /** Resolution */
+            resolution: string;
+            /** Source Type */
+            source_type: string | null;
+            /** User Note */
+            user_note: string | null;
+            /** Was Expected */
+            was_expected: string;
         };
         /** RecoveryAcknowledgementResponse */
         RecoveryAcknowledgementResponse: {
@@ -668,6 +751,95 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["IntentionResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getOutcome: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                intention_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutcomeResponse"];
+                };
+            };
+            /** @description Outcome not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createOutcome: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                intention_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutcomeInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutcomeResponse"];
+                };
+            };
+            /** @description Intention not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Intention is not active */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

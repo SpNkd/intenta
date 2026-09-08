@@ -5,9 +5,15 @@ from sqlalchemy import select, update
 
 from app.api.dependencies import CsrfProtectedAuth, CurrentAuth, Database
 from app.core.clock import now_utc
-from app.models import Intention
-from app.schemas.intentions import IntentionInput, IntentionResponse, TechniqueSnapshot
-from app.services.intentions import build_statement, create_draft
+from app.models import Intention, Outcome
+from app.schemas.intentions import (
+    IntentionInput,
+    IntentionResponse,
+    OutcomeInput,
+    OutcomeResponse,
+    TechniqueSnapshot,
+)
+from app.services.intentions import build_statement, create_draft, create_outcome
 
 router = APIRouter(prefix="/intentions", tags=["intentions"])
 
@@ -36,6 +42,10 @@ def to_response(intention: Intention) -> IntentionResponse:
         activated_at=intention.activated_at,
         observation_day=observation_day,
     )
+
+
+def outcome_to_response(outcome: Outcome) -> OutcomeResponse:
+    return OutcomeResponse.model_validate(outcome)
 
 
 @router.get("/current", response_model=IntentionResponse | None, operation_id="getCurrentIntention")
@@ -141,3 +151,62 @@ async def activate_intention(
     await db.commit()
     response.headers["Cache-Control"] = "no-store"
     return to_response(intention)
+
+
+@router.post(
+    "/{intention_id}/outcome",
+    response_model=OutcomeResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        404: {"description": "Intention not found"},
+        409: {"description": "Intention is not active"},
+    },
+    operation_id="createOutcome",
+)
+async def create_intention_outcome(
+    intention_id: uuid.UUID,
+    payload: OutcomeInput,
+    response: Response,
+    db: Database,
+    auth: CsrfProtectedAuth,
+) -> OutcomeResponse:
+    try:
+        outcome = await create_outcome(
+            db,
+            user_id=auth.user.id,
+            intention_id=intention_id,
+            payload=payload,
+        )
+    except LookupError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Intention not found"
+        ) from error
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+    await db.commit()
+    await db.refresh(outcome)
+    response.headers["Cache-Control"] = "no-store"
+    return outcome_to_response(outcome)
+
+
+@router.get(
+    "/{intention_id}/outcome",
+    response_model=OutcomeResponse,
+    responses={404: {"description": "Outcome not found"}},
+    operation_id="getOutcome",
+)
+async def get_intention_outcome(
+    intention_id: uuid.UUID,
+    response: Response,
+    db: Database,
+    auth: CurrentAuth,
+) -> OutcomeResponse:
+    outcome = await db.scalar(
+        select(Outcome)
+        .join(Intention, Outcome.intention_id == Intention.id)
+        .where(Intention.id == intention_id, Intention.user_id == auth.user.id)
+    )
+    if outcome is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Outcome not found")
+    response.headers["Cache-Control"] = "no-store"
+    return outcome_to_response(outcome)

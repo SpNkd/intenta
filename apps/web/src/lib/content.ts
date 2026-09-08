@@ -2,6 +2,7 @@ import common from "../../../../content/ru/common.json";
 import activation from "../../../../content/ru/activation.json";
 import intentions from "../../../../content/ru/intentions.json";
 import onboarding from "../../../../content/ru/onboarding.json";
+import outcomes from "../../../../content/ru/outcomes.json";
 
 function requiredText(key: string): string {
   const value = common.data[key as keyof typeof common.data];
@@ -32,4 +33,5 @@ export const content = {
   onboardingSteps: onboarding.data,
   intentions: intentions.data,
   activation: activation.data,
+  outcomes: outcomes.data,
 } as const;

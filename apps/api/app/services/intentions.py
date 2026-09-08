@@ -3,8 +3,10 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.clock import now_utc
 from app.core.content import load_content_catalog
-from app.models import AnonymousUser, ExperimentStep, Intention, Technique
+from app.models import AnonymousUser, ExperimentStep, Intention, Outcome, Technique
+from app.schemas.intentions import OutcomeInput
 
 
 async def get_flow_state(db: AsyncSession, user: AnonymousUser) -> str:
@@ -98,3 +100,37 @@ async def create_draft(db: AsyncSession, user: AnonymousUser, text: str) -> Inte
     db.add(intention)
     await db.flush()
     return intention
+
+
+async def create_outcome(
+    db: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    intention_id: uuid.UUID,
+    payload: OutcomeInput,
+) -> Outcome:
+    intention = await db.scalar(
+        select(Intention)
+        .where(Intention.id == intention_id, Intention.user_id == user_id)
+        .with_for_update()
+    )
+    if intention is None:
+        raise LookupError
+    if intention.status != "active":
+        raise ValueError("only an active Intention can be completed")
+    outcome = Outcome(
+        intention_id=intention.id,
+        resolution=payload.resolution,
+        outcome_type=payload.outcome_type,
+        source_type=payload.source_type,
+        amount_received_minor=payload.amount_received_minor,
+        was_expected=payload.was_expected,
+        followed_original_intention=payload.followed_original_intention,
+        user_note=payload.user_note,
+        occurred_at=payload.occurred_at,
+    )
+    intention.status = "completed"
+    intention.completed_at = now_utc()
+    db.add(outcome)
+    await db.flush()
+    return outcome

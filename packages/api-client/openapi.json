@@ -246,6 +246,211 @@
         "title": "MeResponse",
         "type": "object"
       },
+      "OutcomeInput": {
+        "properties": {
+          "amount_received_minor": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Received Minor"
+          },
+          "followed_original_intention": {
+            "enum": [
+              "yes",
+              "not_yet",
+              "chose_other",
+              "did_not_spend",
+              "not_applicable"
+            ],
+            "title": "Followed Original Intention",
+            "type": "string"
+          },
+          "occurred_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurred At"
+          },
+          "outcome_type": {
+            "enum": [
+              "money",
+              "other_amount",
+              "opportunity",
+              "similar",
+              "other",
+              "none"
+            ],
+            "title": "Outcome Type",
+            "type": "string"
+          },
+          "resolution": {
+            "enum": [
+              "happened",
+              "not_happened",
+              "uncertain"
+            ],
+            "title": "Resolution",
+            "type": "string"
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "gift",
+                  "refund",
+                  "bonus_or_cashback",
+                  "extra_income",
+                  "found_money",
+                  "saving_or_discount",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Type"
+          },
+          "user_note": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Note"
+          },
+          "was_expected": {
+            "enum": [
+              "yes",
+              "no",
+              "unsure",
+              "not_applicable"
+            ],
+            "title": "Was Expected",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resolution",
+          "outcome_type",
+          "was_expected",
+          "followed_original_intention"
+        ],
+        "title": "OutcomeInput",
+        "type": "object"
+      },
+      "OutcomeResponse": {
+        "properties": {
+          "amount_received_minor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Received Minor"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "followed_original_intention": {
+            "title": "Followed Original Intention",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "intention_id": {
+            "format": "uuid",
+            "title": "Intention Id",
+            "type": "string"
+          },
+          "occurred_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurred At"
+          },
+          "outcome_type": {
+            "title": "Outcome Type",
+            "type": "string"
+          },
+          "resolution": {
+            "title": "Resolution",
+            "type": "string"
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Type"
+          },
+          "user_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Note"
+          },
+          "was_expected": {
+            "title": "Was Expected",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "intention_id",
+          "resolution",
+          "outcome_type",
+          "source_type",
+          "amount_received_minor",
+          "was_expected",
+          "followed_original_intention",
+          "user_note",
+          "occurred_at",
+          "created_at"
+        ],
+        "title": "OutcomeResponse",
+        "type": "object"
+      },
       "RecoveryAcknowledgementResponse": {
         "properties": {
           "acknowledged": {
@@ -747,6 +952,125 @@
           }
         },
         "summary": "Activate Intention",
+        "tags": [
+          "intentions"
+        ]
+      }
+    },
+    "/api/v1/intentions/{intention_id}/outcome": {
+      "get": {
+        "operationId": "getOutcome",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "intention_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Intention Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutcomeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Outcome not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Intention Outcome",
+        "tags": [
+          "intentions"
+        ]
+      },
+      "post": {
+        "operationId": "createOutcome",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "intention_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Intention Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-CSRF-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutcomeInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutcomeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Intention not found"
+          },
+          "409": {
+            "description": "Intention is not active"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Intention Outcome",
         "tags": [
           "intentions"
         ]
