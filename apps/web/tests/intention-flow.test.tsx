@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
+  usePathname: () => "/intention",
 }));
 vi.mock("@intenta/api-client", () => ({
   api: { GET: mocks.get, POST: mocks.post, PATCH: mocks.patch },
@@ -109,9 +110,11 @@ describe("intention flow", () => {
     expect(
       await screen.findByRole("heading", { name: "Эксперимент завершён" }),
     ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Посмотреть историю" }));
+    expect(mocks.push).toHaveBeenCalledWith("/history");
     expect(
-      screen.getByRole("button", { name: "История скоро появится" }),
-    ).toBeDisabled();
+      screen.getByRole("button", { name: "Код доступа" }),
+    ).toBeInTheDocument();
   });
 
   it("renders stored statement and then the backend-selected technique", async () => {
@@ -128,5 +131,24 @@ describe("intention flow", () => {
     expect(
       screen.getByText("Прочитай написанное один раз."),
     ).toBeInTheDocument();
+  });
+
+  it("returns straight to active home after a later activation with a credential", async () => {
+    mocks.get.mockImplementation((path: string) =>
+      Promise.resolve(
+        path === "/api/v1/intentions/current"
+          ? { data: draft }
+          : path === "/api/v1/auth/csrf"
+            ? { data: { csrf_token: "csrf" } }
+            : { data: { credential_exists: true } },
+      ),
+    );
+    mocks.post.mockResolvedValue({ data: { ...draft, status: "active" } });
+    render(<TechniqueScreen />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Создать Интенту" }),
+    );
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/home"));
   });
 });

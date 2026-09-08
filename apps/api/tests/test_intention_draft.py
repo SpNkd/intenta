@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 
 import pytest
@@ -171,6 +172,50 @@ async def test_activation_is_atomic_immutable_and_updates_flow_state() -> None:
         ).json()["id"] == intention_id
     finally:
         await client.aclose()
+        async with SessionFactory() as db:
+            await db.execute(delete(AnonymousUser).where(AnonymousUser.id == uuid.UUID(user_id)))
+            await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_parallel_patch_cannot_change_a_draft_after_activation() -> None:
+    owner, user_id, csrf = await onboarded_client()
+    contender = AsyncClient(transport=ASGITransport(app=app), base_url=ORIGIN)
+    contender.cookies.update(owner.cookies)
+    headers = {"Origin": ORIGIN, "X-CSRF-Token": csrf}
+    try:
+        draft = await owner.post(
+            "/api/v1/intentions",
+            json={"intention_text_raw": "Куплю себе хорошую книгу"},
+            headers=headers,
+        )
+        intention_id = draft.json()["id"]
+        async with SessionFactory() as lock_db:
+            await lock_db.scalar(
+                select(Intention).where(Intention.id == uuid.UUID(intention_id)).with_for_update()
+            )
+            activation = asyncio.create_task(
+                owner.post(f"/api/v1/intentions/{intention_id}/activation", headers=headers)
+            )
+            await asyncio.sleep(0.05)
+            late_patch = asyncio.create_task(
+                contender.patch(
+                    f"/api/v1/intentions/{intention_id}",
+                    json={"intention_text_raw": "Поздняя попытка изменить текст"},
+                    headers=headers,
+                )
+            )
+            await asyncio.sleep(0.05)
+            await lock_db.commit()
+
+        assert (await activation).status_code == 200
+        assert (await late_patch).status_code == 409
+        saved = await owner.get(f"/api/v1/intentions/{intention_id}")
+        assert saved.json()["status"] == "active"
+        assert saved.json()["intention_text_raw"] == "Куплю себе хорошую книгу"
+    finally:
+        await owner.aclose()
+        await contender.aclose()
         async with SessionFactory() as db:
             await db.execute(delete(AnonymousUser).where(AnonymousUser.id == uuid.UUID(user_id)))
             await db.commit()

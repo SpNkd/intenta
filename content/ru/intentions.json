@@ -18,7 +18,7 @@
     "statement_template_version": "1",
     "statement_template": "Если в моей жизни неожиданно появятся {amount},\nя потрачу их на то, что выбрал для себя:\n\n«{intention_text}»\n\nЭто моё намерение.",
     "experiment_completed_title": "Эксперимент завершён",
-    "experiment_completed_description": "Все доступные шаги уже пройдены. К ним можно будет вернуться в истории.",
-    "history_unavailable_action": "История скоро появится"
+    "experiment_completed_description": "Все доступные шаги уже пройдены. К ним можно вернуться в истории.",
+    "history_action": "Посмотреть историю"
   }
 }

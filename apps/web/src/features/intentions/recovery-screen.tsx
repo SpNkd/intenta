@@ -3,6 +3,7 @@ import { api } from "@intenta/api-client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { content } from "../../lib/content";
+import { routeForFlowState } from "../../lib/flow";
 
 export function RecoveryScreen() {
   const router = useRouter();
@@ -11,14 +12,22 @@ export function RecoveryScreen() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [credentialExists, setCredentialExists] = useState(false);
+  const [returnPath, setReturnPath] = useState("/home");
   useEffect(() => {
     void Promise.all([
       api.GET("/api/v1/me"),
       api.GET("/api/v1/auth/csrf"),
     ]).then(([me, token]) => {
-      if (!me.data || me.data.flow_state !== "active") router.replace("/");
-      else {
+      if (!me.data) router.replace("/");
+      else if (
+        !["active", "ready_for_next", "experiment_completed"].includes(
+          me.data.flow_state,
+        )
+      ) {
+        router.replace(routeForFlowState(me.data.flow_state));
+      } else {
         setCredentialExists(me.data.credential_exists);
+        setReturnPath(routeForFlowState(me.data.flow_state));
         if (token.data) setCsrf(token.data.csrf_token);
       }
     });
@@ -40,7 +49,7 @@ export function RecoveryScreen() {
     await api.POST("/api/v1/me/recovery-code-acknowledgement", {
       headers: { "X-CSRF-Token": csrf },
     });
-    router.push("/home");
+    router.push(returnPath);
   }
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10 sm:px-7">
@@ -68,7 +77,7 @@ export function RecoveryScreen() {
             {content.activation.acknowledge_action}
           </button>
           <button
-            onClick={() => router.push("/home")}
+            onClick={() => router.push(returnPath)}
             className="mt-3 min-h-12 text-sm text-[var(--muted)]"
           >
             {content.activation.later_action}
@@ -95,6 +104,14 @@ export function RecoveryScreen() {
                 ? content.activation.replacement_action
                 : content.activation.issue_code_action}
           </button>
+          {!credentialExists ? (
+            <button
+              onClick={() => router.push(returnPath)}
+              className="mt-3 min-h-12 w-full text-sm text-[var(--muted)]"
+            >
+              {content.activation.later_action}
+            </button>
+          ) : null}
         </>
       )}
     </main>

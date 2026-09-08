@@ -205,14 +205,30 @@ async def update_intention(
     statement, key, version = build_statement(
         payload.intention_text_raw, intention.amount_minor, intention.currency
     )
-    intention.intention_text_raw = payload.intention_text_raw
-    intention.intention_statement = statement
-    intention.statement_template_key = key
-    intention.statement_template_version = version
+    result = await db.execute(
+        update(Intention)
+        .where(
+            Intention.id == intention_id,
+            Intention.user_id == auth.user.id,
+            Intention.status == "draft",
+        )
+        .values(
+            intention_text_raw=payload.intention_text_raw,
+            intention_statement=statement,
+            statement_template_key=key,
+            statement_template_version=version,
+        )
+        .returning(Intention)
+    )
+    updated = result.scalar_one_or_none()
+    if updated is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Only a draft can be edited"
+        )
     await db.commit()
-    await db.refresh(intention)
+    await db.refresh(updated)
     response.headers["Cache-Control"] = "no-store"
-    return to_response(intention)
+    return to_response(updated)
 
 
 @router.post(

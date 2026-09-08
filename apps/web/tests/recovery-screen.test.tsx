@@ -52,4 +52,28 @@ describe("RecoveryScreen", () => {
     );
     expect(await screen.findByText("INTENTA-new-code")).toBeInTheDocument();
   });
+
+  it("allows issuance to be deferred before a first code exists", async () => {
+    mocks.get.mockImplementation((path: string) =>
+      Promise.resolve(
+        path === "/api/v1/me"
+          ? {
+              data: {
+                flow_state: "ready_for_next",
+                credential_exists: false,
+              },
+            }
+          : { data: { csrf_token: "csrf-value" } },
+      ),
+    );
+    render(<RecoveryScreen />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Сделать позже" }),
+    );
+    expect(mocks.push).toHaveBeenCalledWith("/intention");
+    expect(
+      screen.getByRole("button", { name: "Показать код" }),
+    ).toBeInTheDocument();
+  });
 });

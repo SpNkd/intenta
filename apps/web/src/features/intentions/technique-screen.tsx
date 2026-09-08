@@ -46,7 +46,8 @@ export function TechniqueScreen() {
       setActivating(false);
       return;
     }
-    router.push("/recovery");
+    const me = await api.GET("/api/v1/me");
+    router.push(me.data?.credential_exists ? "/home" : "/recovery");
   }
   if (!draft)
     return (

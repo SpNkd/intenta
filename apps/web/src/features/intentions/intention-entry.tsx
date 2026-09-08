@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
 import { content } from "../../lib/content";
+import { MainNavigation } from "../../components/main-navigation";
 
 function amountLabel(amountMinor: number, currency: string) {
   const value = new Intl.NumberFormat("ru-RU").format(amountMinor / 100);
@@ -103,11 +104,18 @@ export function IntentionEntry() {
           {content.intentions.experiment_completed_description}
         </p>
         <button
-          disabled
-          className="mt-10 min-h-12 text-sm text-[var(--muted)] disabled:opacity-60"
+          onClick={() => router.push("/history")}
+          className="mt-10 min-h-14 rounded-full bg-[var(--foreground)] text-white"
         >
-          {content.intentions.history_unavailable_action}
+          {content.intentions.history_action}
         </button>
+        <button
+          onClick={() => router.push("/recovery")}
+          className="mt-3 min-h-12 text-sm text-[var(--muted)]"
+        >
+          {content.activation.manage_recovery_action}
+        </button>
+        <MainNavigation />
       </main>
     );
   }
@@ -134,12 +142,22 @@ export function IntentionEntry() {
             {amountLabel(step.amount_minor, step.currency)}
           </h1>
         </section>
-        <button
-          className="min-h-14 rounded-full bg-[var(--foreground)] text-white"
-          onClick={() => setShowForm(true)}
-        >
-          {content.intentions.amount_action}
-        </button>
+        <div className="space-y-3">
+          <button
+            className="min-h-14 w-full rounded-full bg-[var(--foreground)] text-white"
+            onClick={() => setShowForm(true)}
+          >
+            {content.intentions.amount_action}
+          </button>
+          {!draft ? (
+            <button
+              className="min-h-12 w-full text-sm text-[var(--muted)]"
+              onClick={() => router.push("/recovery")}
+            >
+              {content.activation.manage_recovery_action}
+            </button>
+          ) : null}
+        </div>
       </main>
     );
   }

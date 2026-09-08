@@ -6,6 +6,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete, func, select
 
+from app.api.v1.routes import auth as auth_routes
 from app.api.v1.routes import recovery as recovery_routes
 from app.core.database import SessionFactory
 from app.main import app
@@ -17,9 +18,11 @@ ORIGIN = "http://127.0.0.1:3000"
 
 @pytest.fixture(autouse=True)
 async def reset_recovery_rate_limiters():
+    auth_routes.anonymous_rate_limiter = None
     await recovery_routes.recovery_rate_limiter.reset()
     await recovery_routes.recovery_scoped_rate_limiter.reset()
     await recovery_routes.credential_issuance_rate_limiter.reset()
+    auth_routes.anonymous_rate_limiter = None
     yield
     await recovery_routes.recovery_rate_limiter.reset()
     await recovery_routes.recovery_scoped_rate_limiter.reset()
@@ -157,6 +160,80 @@ async def test_replacement_disables_old_code_and_preserves_sessions() -> None:
         await owner.aclose()
         await old_login.aclose()
         await new_login.aclose()
+        async with SessionFactory() as db:
+            await db.execute(delete(AnonymousUser).where(AnonymousUser.id == uuid.UUID(user_id)))
+            await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_recovery_cannot_create_a_session_for_a_credential_replaced_mid_login(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owner, user_id, csrf = await active_intention_client()
+    recovered = AsyncClient(transport=ASGITransport(app=app), base_url=ORIGIN)
+    headers = {"Origin": ORIGIN, "X-CSRF-Token": csrf}
+    verified = asyncio.Event()
+    original_hasher = recovery_service.hasher
+
+    class SignalingHasher:
+        def hash(self, secret: str) -> str:
+            return original_hasher.hash(secret)
+
+        def verify(self, encoded_hash: str, secret: str) -> bool:
+            verified.set()
+            return original_hasher.verify(encoded_hash, secret)
+
+    try:
+        issued = await owner.post("/api/v1/me/recovery-credential", headers=headers)
+        old_code = issued.json()["code"]
+        monkeypatch.setattr(recovery_service, "hasher", SignalingHasher())
+        async with SessionFactory() as replacement_db:
+            new_code = await recovery_service.replace_credential(replacement_db, uuid.UUID(user_id))
+            stale_recovery = asyncio.create_task(
+                recovered.post("/api/v1/auth/recover", json={"code": old_code})
+            )
+            await asyncio.wait_for(verified.wait(), timeout=3)
+            await replacement_db.commit()
+
+        assert (await stale_recovery).status_code == 401
+        assert (
+            await recovered.post("/api/v1/auth/recover", json={"code": new_code})
+        ).status_code == 204
+    finally:
+        await owner.aclose()
+        await recovered.aclose()
+        async with SessionFactory() as db:
+            await db.execute(delete(AnonymousUser).where(AnonymousUser.id == uuid.UUID(user_id)))
+            await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_credential_can_be_issued_after_a_completed_intention() -> None:
+    owner, user_id, csrf = await active_intention_client()
+    headers = {"Origin": ORIGIN, "X-CSRF-Token": csrf}
+    try:
+        current = await owner.get("/api/v1/intentions/current")
+        completed = await owner.post(
+            f"/api/v1/intentions/{current.json()['id']}/outcome",
+            json={
+                "resolution": "uncertain",
+                "outcome_type": "none",
+                "source_type": None,
+                "amount_received_minor": None,
+                "was_expected": "not_applicable",
+                "followed_original_intention": "not_applicable",
+                "user_note": None,
+                "occurred_at": None,
+            },
+            headers=headers,
+        )
+        assert completed.status_code == 201
+        assert (await owner.get("/api/v1/me")).json()["flow_state"] == "ready_for_next"
+        assert (
+            await owner.post("/api/v1/me/recovery-credential", headers=headers)
+        ).status_code == 200
+    finally:
+        await owner.aclose()
         async with SessionFactory() as db:
             await db.execute(delete(AnonymousUser).where(AnonymousUser.id == uuid.UUID(user_id)))
             await db.commit()

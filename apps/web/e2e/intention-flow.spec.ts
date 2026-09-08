@@ -66,6 +66,9 @@ test("replacement recovery code restores the same active Intention", async ({
   await checkAndCapture(page, "09-technique");
   await page.getByRole("button", { name: "Создать Интенту" }).click();
   await expect(page).toHaveURL(/\/recovery$/);
+  await expect(
+    page.getByRole("button", { name: "Сделать позже" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Показать код" }).click();
   const recoveryCode = await page.locator("code").innerText();
   await expect(
@@ -145,6 +148,10 @@ test("replacement recovery code restores the same active Intention", async ({
   await page.getByLabel("Моё намерение").fill("Куплю себе новый альбом.");
   await page.getByRole("button", { name: "Сохранить намерение" }).click();
   await expect(page).toHaveURL(/\/intention\/paper$/);
+  await page.getByRole("button", { name: "Я записал" }).click();
+  await page.getByRole("button", { name: "Создать Интенту" }).click();
+  await expect(page).toHaveURL(/\/home$/);
+  await expect(page.getByText("Куплю себе новый альбом.")).toBeVisible();
 });
 
 test("the last completed step leads to the terminal experiment state", async ({
@@ -209,6 +216,14 @@ test("the last completed step leads to the terminal experiment state", async ({
   ).toBeVisible();
   await expect(page.getByText("1 000 ₽")).toHaveCount(0);
   await checkAndCapture(page, "13-experiment-completed");
+  await page.getByRole("button", { name: "Посмотреть историю" }).click();
+  await expect(page).toHaveURL(/\/history$/);
+  await page.goto("/intention");
+  await page.getByRole("button", { name: "Код доступа" }).click();
+  await expect(page).toHaveURL(/\/recovery$/);
+  await expect(
+    page.getByRole("button", { name: "Показать код" }),
+  ).toBeVisible();
 });
 
 test("a due reflection can be deferred or saved through the existing Outcome flow", async ({

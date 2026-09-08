@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,11 +42,14 @@ def _constraint_name(error: IntegrityError) -> str | None:
 
 async def issue_credential(db: AsyncSession, user_id: object) -> str:
     await db.execute(select(AnonymousUser.id).where(AnonymousUser.id == user_id).with_for_update())
-    active = await db.scalar(
-        select(Intention.id).where(Intention.user_id == user_id, Intention.status == "active")
+    activated = await db.scalar(
+        select(Intention.id).where(
+            Intention.user_id == user_id,
+            Intention.activated_at.is_not(None),
+        )
     )
-    if active is None:
-        raise ValueError("an active intention is required")
+    if activated is None:
+        raise ValueError("an activated intention is required")
     existing = await db.scalar(
         select(RecoveryCredential.id).where(
             RecoveryCredential.user_id == user_id, RecoveryCredential.disabled_at.is_(None)
@@ -128,9 +131,18 @@ async def verify_credential(db: AsyncSession, code: str) -> AnonymousUser | None
         hasher.verify(credential.secret_hash, secret)
     except VerificationError:
         return None
-    user = await db.get(AnonymousUser, credential.user_id)
+    verified_user_id = await db.scalar(
+        update(RecoveryCredential)
+        .where(
+            RecoveryCredential.id == credential.id,
+            RecoveryCredential.disabled_at.is_(None),
+        )
+        .values(last_used_at=datetime.now(UTC))
+        .returning(RecoveryCredential.user_id)
+    )
+    if verified_user_id is None:
+        return None
+    user = await db.get(AnonymousUser, verified_user_id)
     if user is None or user.status != "active":
         return None
-    credential.last_used_at = datetime.now(UTC)
-    await db.flush()
     return user
