@@ -6,6 +6,7 @@ from sqlalchemy import select
 
 from app.api.dependencies import Configuration, CsrfProtectedAuth, Database
 from app.core.rate_limit import FixedWindowRateLimiter
+from app.core.security import set_session_cookie
 from app.models import RecoveryCredential
 from app.schemas.recovery import (
     RecoveryAcknowledgementResponse,
@@ -131,12 +132,4 @@ async def recover_with_code(
     token, _ = await create_session_for_user(db, user, session_ttl_days=settings.session_ttl_days)
     await db.commit()
     response.headers["Cache-Control"] = "no-store"
-    response.set_cookie(
-        key=settings.session_cookie_name,
-        value=token,
-        max_age=settings.session_ttl_days * 86400,
-        httponly=True,
-        secure=settings.session_cookie_secure,
-        samesite="lax",
-        path="/",
-    )
+    set_session_cookie(response, settings, token)

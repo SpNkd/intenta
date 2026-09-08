@@ -2,10 +2,8 @@
 
 Mobile-first веб-приложение для личного эксперимента с намерением.
 
-Реализованы **Slice 0 — executable foundation** и два vertical slices:
-`Landing → прозрачная anonymous session → onboarding` и
-`500 ₽ → draft → paper → basic Technique`. Activation и recovery flow ещё не
-реализованы.
+Реализован функциональный MVP: anonymous session, onboarding, последовательный
+эксперимент, recovery credential, Outcome, reflection и read-only History.
 
 ## Stack
 
@@ -76,10 +74,9 @@ calls `/api/v1/*` on the Next.js origin; the development rewrite proxies request
 <http://127.0.0.1:8000/docs>.
 
 The session token is stored in an HttpOnly cookie and only its SHA-256 hash is kept
-in PostgreSQL. Local HTTP development uses `SESSION_COOKIE_SECURE=false`; production
-must enable the Secure cookie setting and list its HTTPS origin in `ALLOWED_ORIGINS`.
-Production must also replace `RECOVERY_RATE_LIMIT_HMAC_KEY`; Argon2 benchmarking,
-rehash policy and enforced `__Host-` cookie configuration remain release-hardening tasks.
+in PostgreSQL. Local HTTP development uses `SESSION_COOKIE_SECURE=false` and the
+`intenta_session` name. Production uses `__Host-intenta_session` with `Secure`,
+`HttpOnly`, `SameSite=Lax`, `Path=/` and no `Domain` attribute.
 
 PostgreSQL is exposed on host port `5433` to avoid clashing with a system PostgreSQL;
 inside Docker it still listens on `5432`. Override the host port with `POSTGRES_PORT` and
@@ -147,3 +144,17 @@ uv --directory apps/api run alembic revision --autogenerate -m "describe change"
 
 Defaults are safe for local development only. Copy `.env.example` to `.env` when
 overrides are needed. Never commit `.env` or production secrets.
+
+### Production configuration boundary
+
+Set `APP_ENV=production` only through the deployment environment. Startup fails unless
+all of the following are explicit and valid: a non-local `DATABASE_URL`, exact HTTPS
+`ALLOWED_ORIGINS`, `__Host-intenta_session`, `SESSION_COOKIE_SECURE=true`, an independent
+`RECOVERY_RATE_LIMIT_HMAC_KEY` of at least 32 characters, `TRUSTED_PROXY_CIDRS`, and an
+explicit `API_DOCS_ENABLED` policy. `DEBUG=true`, wildcard origins and HTTP origins are
+rejected in production.
+
+`TRUSTED_PROXY_CIDRS` is intentionally platform-neutral. Choose the ingress/platform
+allowlist before deploy; the application never trusts arbitrary `X-Forwarded-For` values.
+Production content is validated during FastAPI startup. API docs are disabled unless the
+explicit production policy enables them.

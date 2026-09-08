@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
+  replace: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/history",
+  useRouter: () => ({ replace: mocks.replace }),
 }));
 
 vi.mock("@intenta/api-client", () => ({

@@ -3,6 +3,7 @@ from sqlalchemy import select
 
 from app.api.dependencies import Configuration, CurrentAuth, Database
 from app.core.rate_limit import FixedWindowRateLimiter
+from app.core.security import set_session_cookie
 from app.models import RecoveryCredential
 from app.schemas.auth import AnonymousSessionResponse, CsrfResponse, MeResponse
 from app.services.auth import (
@@ -70,15 +71,7 @@ async def create_anonymous(
         db, session_ttl_days=settings.session_ttl_days
     )
     await db.commit()
-    response.set_cookie(
-        key=settings.session_cookie_name,
-        value=session_token,
-        max_age=settings.session_ttl_days * 24 * 60 * 60,
-        httponly=True,
-        secure=settings.session_cookie_secure,
-        samesite="lax",
-        path="/",
-    )
+    set_session_cookie(response, settings, session_token)
     response.headers["Cache-Control"] = "no-store"
     return AnonymousSessionResponse(
         user=await to_me_response(db, auth), csrf_token=csrf_token, created=True
