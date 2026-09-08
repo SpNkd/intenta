@@ -90,6 +90,30 @@ describe("intention flow", () => {
     expect(await screen.findByRole("alert")).toBeInTheDocument();
   });
 
+  it("shows the terminal state when the configured experiment is complete", async () => {
+    mocks.get.mockImplementation((path: string) =>
+      Promise.resolve(
+        path === "/api/v1/me"
+          ? {
+              data: {
+                onboarding_completed: true,
+                flow_state: "experiment_completed",
+              },
+            }
+          : path === "/api/v1/auth/csrf"
+            ? { data: { csrf_token: "csrf" } }
+            : { data: undefined },
+      ),
+    );
+    render(<IntentionEntry />);
+    expect(
+      await screen.findByRole("heading", { name: "Эксперимент завершён" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "История скоро появится" }),
+    ).toBeDisabled();
+  });
+
   it("renders stored statement and then the backend-selected technique", async () => {
     mocks.get.mockResolvedValue({ data: draft });
     const { unmount } = render(<PaperWriting />);

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { content } from "../../lib/content";
+import { routeForFlowState } from "../../lib/flow";
 
 export function Landing() {
   const router = useRouter();
@@ -15,15 +16,7 @@ export function Landing() {
     let active = true;
     void api.GET("/api/v1/me").then(({ data }) => {
       if (!active || !data) return;
-      router.replace(
-        data.flow_state === "onboarding"
-          ? "/onboarding"
-          : data.flow_state === "paper"
-            ? "/intention/paper"
-            : data.flow_state === "active"
-              ? "/home"
-              : "/intention",
-      );
+      router.replace(routeForFlowState(data.flow_state));
     });
     return () => {
       active = false;
@@ -41,7 +34,11 @@ export function Landing() {
       setIsSubmitting(false);
       return;
     }
-    router.push(data.user.onboarding_completed ? "/intention" : "/onboarding");
+    router.push(
+      data.user.onboarding_completed
+        ? routeForFlowState(data.user.flow_state)
+        : "/onboarding",
+    );
   }
 
   return (

@@ -128,6 +128,77 @@ test("replacement recovery code restores the same active Intention", async ({
   await expect(
     page.getByRole("heading", { name: "Результат сохранён" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Продолжить эксперимент" }).click();
+  await expect(page).toHaveURL(/\/intention$/);
+  await expect(page.getByRole("heading", { name: "1 000 ₽" })).toBeVisible();
+  await page.getByRole("button", { name: "Продолжить" }).click();
+  await page.getByLabel("Моё намерение").fill("Куплю себе новый альбом.");
+  await page.getByRole("button", { name: "Сохранить намерение" }).click();
+  await expect(page).toHaveURL(/\/intention\/paper$/);
+});
+
+test("the last completed step leads to the terminal experiment state", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Попробовать" }).click();
+  for (let step = 0; step < 3; step += 1) {
+    await page.getByRole("button", { name: "Дальше" }).click();
+  }
+  await page.getByRole("button", { name: "Начать" }).click();
+  await expect(page).toHaveURL(/\/intention$/);
+  await expect(page.getByRole("heading", { name: "500 ₽" })).toBeVisible();
+
+  const csrfResponse = await page.request.get("/api/v1/auth/csrf");
+  const { csrf_token: csrfToken } = await csrfResponse.json();
+  const headers = {
+    Origin: new URL(page.url()).origin,
+    "X-CSRF-Token": csrfToken,
+  };
+  const closure = {
+    resolution: "uncertain",
+    outcome_type: "none",
+    source_type: null,
+    amount_received_minor: null,
+    was_expected: "not_applicable",
+    followed_original_intention: "not_applicable",
+    user_note: null,
+    occurred_at: null,
+  };
+  for (let position = 1; position <= 5; position += 1) {
+    const draft = await page.request.post("/api/v1/intentions", {
+      data: { intention_text_raw: `Моё намерение ${position}` },
+      headers,
+    });
+    expect(draft.ok()).toBe(true);
+    const intention = await draft.json();
+    expect(intention.step_position).toBe(position);
+    expect(
+      (
+        await page.request.post(
+          `/api/v1/intentions/${intention.id}/activation`,
+          {
+            headers,
+          },
+        )
+      ).ok(),
+    ).toBe(true);
+    expect(
+      (
+        await page.request.post(`/api/v1/intentions/${intention.id}/outcome`, {
+          data: closure,
+          headers,
+        })
+      ).status(),
+    ).toBe(201);
+  }
+
+  await page.goto("/intention");
+  await expect(
+    page.getByRole("heading", { name: "Эксперимент завершён" }),
+  ).toBeVisible();
+  await expect(page.getByText("1 000 ₽")).toHaveCount(0);
+  await checkAndCapture(page, "13-experiment-completed");
 });
 
 test("neutral closure saves an uncertain Outcome", async ({ page }) => {

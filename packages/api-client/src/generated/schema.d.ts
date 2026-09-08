@@ -357,8 +357,11 @@ export interface components {
             created_at: string;
             /** Credential Exists */
             credential_exists: boolean;
-            /** Flow State */
-            flow_state: string;
+            /**
+             * Flow State
+             * @enum {string}
+             */
+            flow_state: "onboarding" | "paper" | "active" | "ready_for_next" | "experiment_completed" | "progression_unavailable";
             /**
              * Id
              * Format: uuid

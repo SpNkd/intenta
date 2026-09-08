@@ -1,12 +1,16 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.clock import now_utc
 from app.core.content import load_content_catalog
 from app.models import AnonymousUser, ExperimentStep, Intention, Outcome, Technique
 from app.schemas.intentions import OutcomeInput
+
+
+class ProgressionConfigurationError(Exception):
+    """The configured experiment ladder has a gap or an inactive next step."""
 
 
 async def get_flow_state(db: AsyncSession, user: AnonymousUser) -> str:
@@ -22,7 +26,11 @@ async def get_flow_state(db: AsyncSession, user: AnonymousUser) -> str:
         return "paper"
     if current_status == "active":
         return "active"
-    return "intention_entry"
+    try:
+        step = await next_step(db, user.id)
+    except ProgressionConfigurationError:
+        return "progression_unavailable"
+    return "ready_for_next" if step is not None else "experiment_completed"
 
 
 def format_amount(amount_minor: int, currency: str) -> str:
@@ -48,17 +56,25 @@ async def next_step(db: AsyncSession, user_id: uuid.UUID) -> ExperimentStep | No
     )
     if current is not None:
         return None
-    completed_positions = select(Intention.step_position).where(Intention.user_id == user_id)
-    step: ExperimentStep | None = await db.scalar(
-        select(ExperimentStep)
-        .where(
-            ExperimentStep.active.is_(True),
-            ExperimentStep.position.not_in(completed_positions),
+    last_completed_position = await db.scalar(
+        select(func.max(Intention.step_position)).where(
+            Intention.user_id == user_id,
+            Intention.status == "completed",
         )
-        .order_by(ExperimentStep.position)
-        .limit(1)
     )
-    return step
+    expected_position = (last_completed_position or 0) + 1
+    step = await db.scalar(
+        select(ExperimentStep).where(ExperimentStep.position == expected_position)
+    )
+    if step is not None:
+        if not step.active:
+            raise ProgressionConfigurationError
+        return step
+
+    last_configured_position = await db.scalar(select(func.max(ExperimentStep.position)))
+    if last_configured_position is None or expected_position > last_configured_position:
+        return None
+    raise ProgressionConfigurationError
 
 
 async def create_draft(db: AsyncSession, user: AnonymousUser, text: str) -> Intention:

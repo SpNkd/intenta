@@ -218,6 +218,14 @@
             "type": "boolean"
           },
           "flow_state": {
+            "enum": [
+              "onboarding",
+              "paper",
+              "active",
+              "ready_for_next",
+              "experiment_completed",
+              "progression_unavailable"
+            ],
             "title": "Flow State",
             "type": "string"
           },

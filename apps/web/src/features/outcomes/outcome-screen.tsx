@@ -212,6 +212,18 @@ export function OutcomeScreen() {
             )}
           </p>
         </section>
+        <button
+          onClick={() => router.push("/intention")}
+          className="mt-10 min-h-14 rounded-full bg-[var(--foreground)] text-white"
+        >
+          {content.outcomes.continue_experiment_action}
+        </button>
+        <button
+          disabled
+          className="mt-3 min-h-12 text-sm text-[var(--muted)] disabled:opacity-60"
+        >
+          {content.outcomes.view_history_action}
+        </button>
       </main>
     );
   }

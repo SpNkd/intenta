@@ -47,6 +47,8 @@
     "summary_spending_label": "Что решил сделать",
     "summary_date_label": "Сохранено",
     "save_error": "Не получилось сохранить результат. Попробуй ещё раз.",
-    "back_to_home": "Вернуться"
+    "back_to_home": "Вернуться",
+    "continue_experiment_action": "Продолжить эксперимент",
+    "view_history_action": "Посмотреть историю"
   }
 }

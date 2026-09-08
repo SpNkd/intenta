@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, HTTPException, Response, status
 
 from app.api.dependencies import CurrentAuth, Database
 from app.schemas.intentions import ExperimentStepResponse
-from app.services.intentions import next_step
+from app.services.intentions import ProgressionConfigurationError, next_step
 
 router = APIRouter(prefix="/experiment", tags=["experiment"])
 
@@ -13,7 +13,13 @@ router = APIRouter(prefix="/experiment", tags=["experiment"])
 async def get_next_step(
     response: Response, db: Database, auth: CurrentAuth
 ) -> ExperimentStepResponse | None:
-    step = await next_step(db, auth.user.id)
+    try:
+        step = await next_step(db, auth.user.id)
+    except ProgressionConfigurationError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Experiment progression is unavailable",
+        ) from error
     response.headers["Cache-Control"] = "no-store"
     if step is None:
         return None

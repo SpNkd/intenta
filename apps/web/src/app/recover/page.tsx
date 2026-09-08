@@ -3,6 +3,7 @@ import { api } from "@intenta/api-client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { content } from "../../lib/content";
+import { routeForFlowState } from "../../lib/flow";
 export default function RecoverPage() {
   const router = useRouter();
   const [code, setCode] = useState("");
@@ -21,7 +22,7 @@ export default function RecoverPage() {
       return;
     }
     const { data } = await api.GET("/api/v1/me");
-    router.push(data?.flow_state === "active" ? "/home" : "/");
+    router.push(data ? routeForFlowState(data.flow_state) : "/");
   }
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10 sm:px-7">

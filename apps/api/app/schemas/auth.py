@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -10,7 +11,14 @@ class MeResponse(BaseModel):
     id: uuid.UUID
     created_at: datetime
     onboarding_completed: bool
-    flow_state: str
+    flow_state: Literal[
+        "onboarding",
+        "paper",
+        "active",
+        "ready_for_next",
+        "experiment_completed",
+        "progression_unavailable",
+    ]
     credential_exists: bool
     recovery_code_acknowledged: bool
 

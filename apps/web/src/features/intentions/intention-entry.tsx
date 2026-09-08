@@ -24,6 +24,7 @@ export function IntentionEntry() {
   const [csrf, setCsrf] = useState("");
   const [text, setText] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [experimentCompleted, setExperimentCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -47,6 +48,8 @@ export function IntentionEntry() {
         setShowForm(true);
       } else if (next.data) {
         setStep(next.data);
+      } else if (me.data.flow_state === "experiment_completed") {
+        setExperimentCompleted(true);
       } else {
         setError(content.requestError);
       }
@@ -79,10 +82,40 @@ export function IntentionEntry() {
     router.push("/intention/paper");
   }
 
-  if (loading || !step) {
+  if (loading) {
     return (
       <main className="grid min-h-dvh place-items-center text-sm text-[var(--muted)]">
         {content.loading}
+      </main>
+    );
+  }
+
+  if (experimentCompleted) {
+    return (
+      <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10 sm:px-7">
+        <p className="text-xs font-semibold tracking-[0.28em] text-[var(--muted)]">
+          {content.appName}
+        </p>
+        <h1 className="mt-10 text-4xl font-medium tracking-[-0.05em]">
+          {content.intentions.experiment_completed_title}
+        </h1>
+        <p className="mt-6 text-lg leading-7 text-[var(--muted)]">
+          {content.intentions.experiment_completed_description}
+        </p>
+        <button
+          disabled
+          className="mt-10 min-h-12 text-sm text-[var(--muted)] disabled:opacity-60"
+        >
+          {content.intentions.history_unavailable_action}
+        </button>
+      </main>
+    );
+  }
+
+  if (!step) {
+    return (
+      <main className="grid min-h-dvh place-items-center px-5 text-center text-sm text-[var(--error)]">
+        {error || content.requestError}
       </main>
     );
   }

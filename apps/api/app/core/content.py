@@ -52,6 +52,9 @@ class IntentionContent(BaseModel):
     paper_written_action: str
     edit_action: str
     technique_label: str
+    experiment_completed_title: str
+    experiment_completed_description: str
+    history_unavailable_action: str
     statement_template_key: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     statement_template_version: str = Field(pattern=r"^[1-9][0-9]*$")
     statement_template: str
