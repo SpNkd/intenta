@@ -65,6 +65,47 @@ export type StaticState = {
 };
 const amounts = [500, 1000, 2000, 5000, 10000];
 
+/**
+ * The first static build permitted duplicate drafts and duplicate completion
+ * writes. A step is identified by its fixed amount, so retain exactly one
+ * record for it: a completed record wins; otherwise an active one wins over a
+ * draft. The newest record of that kind is retained.
+ */
+export function normalizeState(state: StaticState): StaticState {
+  const byAmount = new Map<number, StaticIntention[]>();
+  for (const intention of state.intentions) {
+    const current = byAmount.get(intention.amount) ?? [];
+    current.push(intention);
+    byAmount.set(intention.amount, current);
+  }
+
+  const kept = new Set<string>();
+  for (const intentions of byAmount.values()) {
+    const newest = (items: StaticIntention[]) =>
+      [...items].sort((left, right) =>
+        (right.completedAt ?? right.activatedAt ?? right.createdAt).localeCompare(
+          left.completedAt ?? left.activatedAt ?? left.createdAt,
+        ),
+      )[0];
+    const completed = intentions.filter((item) => item.status === "completed");
+    const active = intentions.filter((item) => item.status === "active");
+    const draft = intentions.filter((item) => item.status === "draft");
+    const winner =
+      (completed.length ? newest(completed) : undefined) ??
+      (active.length ? newest(active) : undefined) ??
+      (draft.length ? newest(draft) : undefined);
+    if (winner) kept.add(winner.id);
+  }
+
+  return {
+    ...state,
+    intentions: state.intentions.filter((intention) => kept.has(intention.id)),
+    selectedIntentionId: kept.has(state.selectedIntentionId ?? "")
+      ? state.selectedIntentionId
+      : undefined,
+  };
+}
+
 type Profile = {
   id: string;
   recovery_public_id: string | null;
@@ -94,7 +135,7 @@ export async function loadState(): Promise<StaticState> {
   const profileData = await profile();
   if (!profileData.encrypted_state || !profileData.state_iv)
     return { onboarding: false, intentions: [] };
-  return decryptValue<StaticState>(
+  const decoded = await decryptValue<StaticState>(
     {
       ciphertext: profileData.encrypted_state,
       iv: profileData.state_iv,
@@ -102,6 +143,11 @@ export async function loadState(): Promise<StaticState> {
     },
     await keyFor(profileData),
   );
+  const normalized = normalizeState(decoded);
+  if (JSON.stringify(decoded) !== JSON.stringify(normalized)) {
+    await saveState(normalized);
+  }
+  return normalized;
 }
 
 export async function saveState(state: StaticState): Promise<void> {
@@ -119,10 +165,12 @@ export async function saveState(state: StaticState): Promise<void> {
 }
 
 export function nextAmount(state: StaticState): number | undefined {
-  const completed = state.intentions.filter(
-    (item) => item.status === "completed",
-  ).length;
-  return amounts[completed];
+  const completed = new Set(
+    state.intentions
+      .filter((item) => item.status === "completed")
+      .map((item) => item.amount),
+  );
+  return amounts.find((amount) => !completed.has(amount));
 }
 
 export async function issueRecovery(state: StaticState): Promise<string> {
