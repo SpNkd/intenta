@@ -28,6 +28,18 @@ export type StaticIntention = {
 export type StaticState = {
   onboarding: boolean;
   intentions: StaticIntention[];
+  // This is encrypted together with the rest of the local state. It is only
+  // navigation context, never a recovery secret.
+  lastScreen?:
+    | "landing"
+    | "onboarding"
+    | "amount"
+    | "write"
+    | "paper"
+    | "technique"
+    | "active"
+    | "outcome"
+    | "history";
 };
 const amounts = [500, 1000, 2000, 5000, 10000];
 

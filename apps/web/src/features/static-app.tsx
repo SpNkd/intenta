@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { content } from "../lib/content";
 import {
@@ -26,8 +26,28 @@ type Screen =
   | "recovery"
   | "code";
 
-const statement = (amount: number) =>
-  `Когда в моей жизни неожиданно появятся ${amount.toLocaleString("ru-RU")} ₽, я потрачу их на то, что выбрал для себя.`;
+const statement = (amount: number, intentionText: string) =>
+  content.intentions.statement_template
+    .replace("{amount}", `${amount.toLocaleString("ru-RU")} ₽`)
+    .replace("{intention_text}", intentionText);
+
+const persistentScreens = new Set<Exclude<Screen, "recovery" | "code">>([
+  "landing",
+  "onboarding",
+  "amount",
+  "write",
+  "paper",
+  "technique",
+  "active",
+  "outcome",
+  "history",
+]);
+
+function isPersistentScreen(
+  screen: Screen,
+): screen is Exclude<Screen, "recovery" | "code"> {
+  return persistentScreens.has(screen as Exclude<Screen, "recovery" | "code">);
+}
 
 export function StaticApp() {
   const [state, setState] = useState<StaticState | null>(null);
@@ -38,6 +58,7 @@ export function StaticApp() {
   const [shownCode, setShownCode] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const hasLoaded = useRef(false);
   const current = useMemo(
     () => state?.intentions.find((item) => item.status !== "completed"),
     [state],
@@ -47,22 +68,45 @@ export function StaticApp() {
     void loadState()
       .then((loaded) => {
         setState(loaded);
-        if (loaded.onboarding)
+        if (loaded.onboarding) {
           setScreen(
-            loaded.intentions.find((item) => item.status === "active")
-              ? "active"
-              : "amount",
+            loaded.lastScreen ??
+              (loaded.intentions.find((item) => item.status === "active")
+                ? "active"
+                : "amount"),
           );
+        }
+        hasLoaded.current = true;
       })
       .catch(() => setScreen("landing"));
   }, []);
+
+  useEffect(() => {
+    if (
+      !hasLoaded.current ||
+      !state ||
+      !isPersistentScreen(screen) ||
+      state.lastScreen === screen
+    )
+      return;
+    const next = { ...state, lastScreen: screen };
+    setState(next);
+    void saveState(next).catch(() => {
+      // A navigation change must never trap someone on a screen. The next
+      // successful product action will save it again.
+    });
+  }, [screen, state]);
 
   async function persist(next: StaticState, destination?: Screen) {
     setBusy(true);
     setError("");
     try {
-      await saveState(next);
-      setState(next);
+      const nextState =
+        destination && isPersistentScreen(destination)
+          ? { ...next, lastScreen: destination }
+          : next;
+      await saveState(nextState);
+      setState(nextState);
       if (destination) setScreen(destination);
     } catch {
       setError("Не удалось сохранить. Проверь соединение и попробуй ещё раз.");
@@ -210,7 +254,7 @@ export function StaticApp() {
               id: crypto.randomUUID(),
               amount,
               text: text.trim(),
-              statement: statement(amount),
+              statement: statement(amount, text.trim()),
               status: "draft",
               createdAt: new Date().toISOString(),
             };
@@ -241,6 +285,13 @@ export function StaticApp() {
           />
           <button className="primary-action mt-auto" disabled={busy}>
             {content.intentions.save_draft_action}
+          </button>
+          <button
+            type="button"
+            className="quiet-action mt-3"
+            onClick={() => setScreen("amount")}
+          >
+            {content.backAction}
           </button>
         </form>
       </main>
@@ -279,9 +330,10 @@ export function StaticApp() {
           Прочитай написанное один раз. Заметь, что выбор уже сформулирован.
           Затем отложи лист и возвращайся к обычным делам.
         </p>
-        <button
-          className="primary-action mt-12"
-          onClick={() => {
+        <div className="mt-12 space-y-3">
+          <button
+            className="primary-action"
+            onClick={() => {
             const now = new Date().toISOString();
             void persist(
               {
@@ -294,10 +346,14 @@ export function StaticApp() {
               },
               "active",
             );
-          }}
-        >
-          {content.activation.activate_action}
-        </button>
+            }}
+          >
+            {content.activation.activate_action}
+          </button>
+          <button className="quiet-action" onClick={() => setScreen("paper")}>
+            {content.backAction}
+          </button>
+        </div>
       </main>
     );
   if (screen === "active" && current)
@@ -389,6 +445,12 @@ export function StaticApp() {
           }}
         >
           Сохранить результат
+        </button>
+        <button
+          className="quiet-action mt-3"
+          onClick={() => setScreen("active")}
+        >
+          {content.backAction}
         </button>
       </main>
     );
