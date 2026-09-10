@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     recovery_rate_limit_hmac_key: str = Field(
         default=LOCAL_RECOVERY_RATE_LIMIT_HMAC_KEY, min_length=16
     )
+    recovery_network_rate_limit_per_minute: int = Field(default=10, ge=1, le=1000)
+    recovery_public_id_rate_limit_per_minute: int = Field(default=5, ge=1, le=1000)
+    recovery_issuance_network_rate_limit_per_minute: int = Field(default=5, ge=1, le=1000)
+    recovery_issuance_identity_rate_limit_per_minute: int = Field(default=5, ge=1, le=1000)
+    argon2_max_concurrency: int = Field(default=2, ge=1, le=16)
     trusted_proxy_cidrs: str = ""
     api_docs_enabled: bool | None = None
     debug: bool | None = None

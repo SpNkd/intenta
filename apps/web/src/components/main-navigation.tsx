@@ -15,14 +15,14 @@ export function MainNavigation() {
       <Link
         href="/home"
         aria-current={pathname === "/home" ? "page" : undefined}
-        className="min-h-11 flex-1 rounded-xl px-3 py-3 text-center text-sm aria-[current=page]:bg-[var(--background)]"
+        className="min-h-11 flex-1 rounded-xl px-3 py-3 text-center text-sm font-medium aria-[current=page]:bg-[var(--surface-strong)]"
       >
         {content.history.nav_intention}
       </Link>
       <Link
         href="/history"
         aria-current={pathname === "/history" ? "page" : undefined}
-        className="min-h-11 flex-1 rounded-xl px-3 py-3 text-center text-sm aria-[current=page]:bg-[var(--background)]"
+        className="min-h-11 flex-1 rounded-xl px-3 py-3 text-center text-sm font-medium aria-[current=page]:bg-[var(--surface-strong)]"
       >
         {content.history.nav_history}
       </Link>

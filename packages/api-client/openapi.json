@@ -387,6 +387,10 @@
           "recovery_code_acknowledged": {
             "title": "Recovery Code Acknowledged",
             "type": "boolean"
+          },
+          "recovery_credential_issuable": {
+            "title": "Recovery Credential Issuable",
+            "type": "boolean"
           }
         },
         "required": [
@@ -395,6 +399,7 @@
           "onboarding_completed",
           "flow_state",
           "credential_exists",
+          "recovery_credential_issuable",
           "recovery_code_acknowledged"
         ],
         "title": "MeResponse",

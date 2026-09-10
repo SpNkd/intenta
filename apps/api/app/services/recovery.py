@@ -4,15 +4,19 @@ import re
 import secrets
 from datetime import UTC, datetime
 
-from argon2 import PasswordHasher
+import anyio
+from argon2 import PasswordHasher, Type
 from argon2.exceptions import VerificationError
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.models import AnonymousUser, Intention, RecoveryCredential
 
-hasher = PasswordHasher()
+# Conservative first production baseline: Argon2id, 19 MiB, two iterations, one lane.
+hasher = PasswordHasher(time_cost=2, memory_cost=19_456, parallelism=1, hash_len=32, type=Type.ID)
+argon2_limiter = anyio.CapacityLimiter(get_settings().argon2_max_concurrency)
 DUMMY_SECRET_HASH = hasher.hash(secrets.token_urlsafe(24))
 CROCKFORD_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 PUBLIC_ID_LENGTH = 8
@@ -65,7 +69,7 @@ async def issue_credential(db: AsyncSession, user_id: object) -> str:
                     RecoveryCredential(
                         user_id=user_id,
                         public_id=public_id,
-                        secret_hash=hasher.hash(secret),
+                        secret_hash=await hash_recovery_secret(secret),
                     )
                 )
                 await db.flush()
@@ -122,14 +126,9 @@ async def verify_credential(db: AsyncSession, code: str) -> AnonymousUser | None
         )
     )
     if credential is None:
-        try:
-            hasher.verify(DUMMY_SECRET_HASH, secret)
-        except VerificationError:
-            pass
+        await verify_recovery_secret(DUMMY_SECRET_HASH, secret)
         return None
-    try:
-        hasher.verify(credential.secret_hash, secret)
-    except VerificationError:
+    if not await verify_recovery_secret(credential.secret_hash, secret):
         return None
     verified_user_id = await db.scalar(
         update(RecoveryCredential)
@@ -146,3 +145,16 @@ async def verify_credential(db: AsyncSession, code: str) -> AnonymousUser | None
     if user is None or user.status != "active":
         return None
     return user
+
+
+async def hash_recovery_secret(secret: str) -> str:
+    return await anyio.to_thread.run_sync(hasher.hash, secret, limiter=argon2_limiter)
+
+
+async def verify_recovery_secret(encoded_hash: str, secret: str) -> bool:
+    try:
+        return await anyio.to_thread.run_sync(
+            hasher.verify, encoded_hash, secret, limiter=argon2_limiter
+        )
+    except VerificationError:
+        return False

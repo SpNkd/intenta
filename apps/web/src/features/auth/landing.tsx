@@ -42,16 +42,15 @@ export function Landing() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pt-8 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-7 sm:pt-12">
-      <p className="text-xs font-semibold tracking-[0.28em] text-[var(--muted)]">
-        {content.appName}
-      </p>
-      <section className="flex flex-1 flex-col justify-center py-12">
-        <h1 className="max-w-sm text-[clamp(2.75rem,14vw,4.5rem)] leading-[0.98] font-medium tracking-[-0.055em]">
+    <main className="app-shell flex flex-col">
+      <p className="app-eyebrow">{content.appName}</p>
+      <section className="flex flex-1 flex-col justify-center py-16">
+        <h1 className="max-w-sm text-[clamp(3.5rem,18vw,5rem)] leading-[0.92] font-medium tracking-[-0.065em]">
           {content.appName}
         </h1>
-        <p className="mt-6 max-w-xs text-lg leading-7 text-[var(--muted)]">
-          {content.tagline}
+        <p className="app-lead mt-7 max-w-xs">{content.tagline}</p>
+        <p className="mt-5 max-w-sm text-sm leading-6 text-[var(--muted)]">
+          {content.landingDescription}
         </p>
       </section>
       <div className="space-y-3">
@@ -64,16 +63,23 @@ export function Landing() {
           type="button"
           disabled={isSubmitting}
           onClick={() => void start()}
-          className="min-h-14 w-full rounded-full bg-[var(--foreground)] px-6 text-base font-medium text-white transition-opacity disabled:opacity-60"
+          className="primary-action"
         >
           {isSubmitting ? content.loading : content.tryAction}
         </button>
         <button
           type="button"
           onClick={() => router.push("/recover")}
-          className="min-h-12 w-full rounded-full px-6 text-sm font-medium text-[var(--muted)]"
+          className="quiet-action"
         >
           {content.recoverAction}
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push("/about?returnTo=/")}
+          className="quiet-action"
+        >
+          {content.learnAction}
         </button>
       </div>
     </main>

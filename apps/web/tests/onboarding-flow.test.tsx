@@ -36,18 +36,18 @@ describe("OnboardingFlow", () => {
 
     expect(
       await screen.findByText(
-        "Интента предложит тебе сумму для небольшого эксперимента.",
+        "Интента предложит небольшую сумму для личного эксперимента.",
       ),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Дальше" }));
-    expect(screen.getByText(/Заранее решишь/)).toBeInTheDocument();
+    expect(screen.getByText(/Заранее выберешь/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Дальше" }));
     expect(
       screen.getByText("Запишешь своё намерение от руки."),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Дальше" }));
-    expect(screen.getByText(/просто посмотришь/)).toBeInTheDocument();
+    expect(screen.getByText(/просто живи как обычно/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Начать" }));
 
     await waitFor(() => {

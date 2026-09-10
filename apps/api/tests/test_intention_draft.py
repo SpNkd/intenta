@@ -48,7 +48,7 @@ async def test_next_step_create_trim_statement_snapshot_edit_and_repeat() -> Non
         draft = created.json()
         assert draft["intention_text_raw"] == "Куплю себе хорошие наушники."
         assert draft["intention_statement"] == (
-            "Если в моей жизни неожиданно появятся 500 ₽,\n"
+            "Когда в моей жизни неожиданно появятся 500 ₽,\n"
             "я потрачу их на то, что выбрал для себя:\n\n"
             "«Куплю себе хорошие наушники.»\n\nЭто моё намерение."
         )

@@ -16,9 +16,12 @@
     "recovery_description": "Этот код поможет вернуться к Интенте с другого устройства. Он будет показан только один раз.",
     "issue_code_action": "Показать код",
     "copy_action": "Скопировать",
+    "copied_action": "Скопировано",
     "acknowledge_action": "Я сохранил код",
     "later_action": "Сделать позже",
     "recovery_error": "Не получилось выдать код. Попробуй ещё раз.",
+    "recovery_unavailable_description": "Код доступа можно выпустить после того, как ты активируешь первую Интенту.",
+    "recovery_unavailable_action": "Вернуться к Интенте",
     "replacement_warning": "Предыдущий код перестанет работать. Новый код будет показан только один раз.",
     "replacement_action": "Создать новый код",
     "manage_recovery_action": "Код доступа"

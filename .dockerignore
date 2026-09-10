@@ -1,0 +1,16 @@
+.git
+.env
+.env.*
+node_modules
+**/node_modules
+.next
+**/.next
+.venv
+**/.venv
+coverage
+playwright-report
+test-results
+artifacts
+__pycache__
+**/__pycache__
+.DS_Store

@@ -73,23 +73,15 @@ export function ActiveHome() {
     setIntention(data);
     setDeferring(false);
   }
-  if (loading)
-    return (
-      <main className="grid min-h-dvh place-items-center text-sm text-[var(--muted)]">
-        {content.loading}
-      </main>
-    );
+  if (loading) return <main className="screen-state">{content.loading}</main>;
   if (error)
     return (
-      <main className="grid min-h-dvh place-items-center px-5 text-center">
+      <main className="screen-state text-center">
         <div>
           <p role="alert" className="text-sm text-[var(--error)]">
             {error}
           </p>
-          <button
-            onClick={() => void load()}
-            className="mt-4 min-h-11 text-sm text-[var(--muted)]"
-          >
+          <button onClick={() => void load()} className="quiet-action mt-4">
             {content.retryAction}
           </button>
         </div>
@@ -97,12 +89,10 @@ export function ActiveHome() {
     );
   if (!intention) return null;
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col px-5 py-8 sm:px-7">
-      <p className="text-xs font-semibold tracking-[0.28em] text-[var(--muted)]">
-        {content.appName}
-      </p>
-      <section className="flex flex-1 flex-col justify-center">
-        <p className="text-sm text-[var(--muted)]">
+    <main className="app-shell flex flex-col">
+      <p className="app-eyebrow">{content.appName}</p>
+      <section className="flex flex-1 flex-col justify-center py-10">
+        <p className="inline-flex w-fit rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--muted)]">
           {content.activation.observing_status} ·{" "}
           {content.activation.day_label.replace(
             "{day}",
@@ -112,28 +102,30 @@ export function ActiveHome() {
         <h1 className="mt-5 text-[clamp(4.5rem,23vw,7rem)] leading-none font-medium tracking-[-0.07em]">
           {amountLabel(intention.amount_minor, intention.currency)}
         </h1>
-        <p className="mt-8 text-xl leading-8">{intention.intention_text_raw}</p>
+        <p className="mt-8 border-l-2 border-[var(--foreground)] pl-5 text-xl leading-8">
+          {intention.intention_text_raw}
+        </p>
       </section>
-      <h2 className="text-2xl font-medium tracking-[-0.03em]">
+      <h2 className="text-xl font-medium tracking-[-0.03em]">
         {content.activation.created_title}
       </h2>
-      <p className="mt-3 mb-5 text-base leading-7 text-[var(--muted)]">
+      <p className="mt-3 mb-6 text-base leading-7 text-[var(--muted)]">
         {content.activation.created_description}
       </p>
       {intention.reflection_due ? (
-        <section className="mb-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+        <section className="surface-card mb-6 p-5">
           <h2 className="text-xl font-medium tracking-[-0.03em]">
             {content.reflections.title}
           </h2>
           <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
             {content.reflections.description}
           </p>
-          <div className="mt-5 grid grid-cols-3 gap-2">
+          <div className="mt-5 space-y-2">
             <button
               onClick={() =>
                 router.push(`/outcome/${intention.id}?mode=happened`)
               }
-              className="min-h-12 rounded-full bg-[var(--foreground)] px-2 text-sm text-white"
+              className="primary-action min-h-12 text-sm"
             >
               {content.reflections.happened_action}
             </button>
@@ -143,7 +135,7 @@ export function ActiveHome() {
                   `/outcome/${intention.id}?mode=close&resolution=not_happened`,
                 )
               }
-              className="min-h-12 rounded-full border border-[var(--border)] px-2 text-sm"
+              className="secondary-action min-h-12 text-sm"
             >
               {content.reflections.not_happened_action}
             </button>
@@ -153,7 +145,7 @@ export function ActiveHome() {
                   `/outcome/${intention.id}?mode=close&resolution=uncertain`,
                 )
               }
-              className="min-h-12 rounded-full border border-[var(--border)] px-2 text-sm"
+              className="secondary-action min-h-12 text-sm"
             >
               {content.reflections.uncertain_action}
             </button>
@@ -166,7 +158,7 @@ export function ActiveHome() {
           <button
             disabled={!csrf || deferring}
             onClick={() => void defer()}
-            className="mt-3 min-h-12 text-sm text-[var(--muted)] disabled:opacity-60"
+            className="quiet-action mt-3"
           >
             {deferring ? content.loading : content.reflections.continue_action}
           </button>
@@ -174,21 +166,27 @@ export function ActiveHome() {
       ) : null}
       <button
         onClick={() => router.push(`/outcome/${intention.id}?mode=happened`)}
-        className="min-h-14 rounded-full bg-[var(--foreground)] text-white"
+        className="primary-action"
       >
         {content.activation.happened_action}
       </button>
       <button
         onClick={() => router.push(`/outcome/${intention.id}?mode=close`)}
-        className="mt-3 min-h-12 text-sm text-[var(--muted)]"
+        className="secondary-action mt-3"
       >
         {content.activation.finish_action}
       </button>
       <button
         onClick={() => router.push("/recovery")}
-        className="mt-3 min-h-12 text-sm text-[var(--muted)]"
+        className="quiet-action mt-2"
       >
         {content.activation.manage_recovery_action}
+      </button>
+      <button
+        onClick={() => router.push("/about?returnTo=/home")}
+        className="quiet-action"
+      >
+        {content.learnAction}
       </button>
       <MainNavigation />
     </main>

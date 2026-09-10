@@ -430,6 +430,8 @@ export interface components {
             onboarding_completed: boolean;
             /** Recovery Code Acknowledged */
             recovery_code_acknowledged: boolean;
+            /** Recovery Credential Issuable */
+            recovery_credential_issuable: boolean;
         };
         /** OutcomeInput */
         OutcomeInput: {

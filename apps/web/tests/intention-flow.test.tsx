@@ -35,6 +35,7 @@ const draft = {
 describe("intention flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.sessionStorage.clear();
   });
 
   it("shows backend amount, creates draft and opens paper screen", async () => {
@@ -89,6 +90,33 @@ describe("intention flow", () => {
       screen.getByRole("button", { name: "Сохранить намерение" }),
     );
     expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
+  it("restores an unsaved intention after reading the experiment explanation", async () => {
+    mocks.get.mockImplementation((path: string) =>
+      Promise.resolve(
+        path === "/api/v1/me"
+          ? { data: { onboarding_completed: true } }
+          : path === "/api/v1/auth/csrf"
+            ? { data: { csrf_token: "csrf" } }
+            : path === "/api/v1/experiment/next"
+              ? { data: { amount_minor: 50000, currency: "RUB" } }
+              : { data: undefined },
+      ),
+    );
+    const first = render(<IntentionEntry />);
+    fireEvent.click(await screen.findByRole("button", { name: "Продолжить" }));
+    fireEvent.change(screen.getByLabelText("Моё намерение"), {
+      target: { value: "Куплю себе книгу" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Как это устроено" }));
+    expect(mocks.push).toHaveBeenCalledWith("/about?returnTo=/intention");
+    first.unmount();
+
+    render(<IntentionEntry />);
+    expect(await screen.findByLabelText("Моё намерение")).toHaveValue(
+      "Куплю себе книгу",
+    );
   });
 
   it("shows the terminal state when the configured experiment is complete", async () => {

@@ -76,4 +76,14 @@ describe("ActiveHome", () => {
       "/outcome/intention-id?mode=close&resolution=uncertain",
     );
   });
+
+  it("keeps the explanation of the experiment available from active home", async () => {
+    render(<ActiveHome />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Как это устроено" }),
+    );
+
+    expect(mocks.push).toHaveBeenCalledWith("/about?returnTo=/home");
+  });
 });

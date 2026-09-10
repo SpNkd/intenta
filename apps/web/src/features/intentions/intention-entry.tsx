@@ -9,6 +9,8 @@ import { content } from "../../lib/content";
 import { MainNavigation } from "../../components/main-navigation";
 import { isUnauthorized } from "../../lib/private-request";
 
+const unsavedIntentionStorageKey = "intenta:unsaved-intention";
+
 function amountLabel(amountMinor: number, currency: string) {
   const value = new Intl.NumberFormat("ru-RU").format(amountMinor / 100);
   return `${value} ${currency === "RUB" ? "₽" : currency}`;
@@ -28,6 +30,7 @@ export function IntentionEntry() {
   const [text, setText] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [experimentCompleted, setExperimentCompleted] = useState(false);
+  const [recoveryAvailable, setRecoveryAvailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -51,6 +54,9 @@ export function IntentionEntry() {
         return router.replace("/");
       if (!me.data) return setError(content.requestError);
       if (!me.data.onboarding_completed) return router.replace("/onboarding");
+      setRecoveryAvailable(
+        me.data.credential_exists || me.data.recovery_credential_issuable,
+      );
       if (csrfResponse.data) setCsrf(csrfResponse.data.csrf_token);
       if (current.data) {
         setDraft(current.data);
@@ -59,6 +65,13 @@ export function IntentionEntry() {
         setShowForm(true);
       } else if (next.data) {
         setStep(next.data);
+        const unsavedText = window.sessionStorage.getItem(
+          unsavedIntentionStorageKey,
+        );
+        if (unsavedText) {
+          setText(unsavedText);
+          setShowForm(true);
+        }
       } else if (me.data.flow_state === "experiment_completed") {
         setExperimentCompleted(true);
       } else {
@@ -95,38 +108,40 @@ export function IntentionEntry() {
       setSaving(false);
       return;
     }
+    window.sessionStorage.removeItem(unsavedIntentionStorageKey);
     router.push("/intention/paper");
   }
 
+  function openAbout() {
+    if (!draft && text.trim()) {
+      window.sessionStorage.setItem(unsavedIntentionStorageKey, text);
+    }
+    router.push("/about?returnTo=/intention");
+  }
+
   if (loading) {
-    return (
-      <main className="grid min-h-dvh place-items-center text-sm text-[var(--muted)]">
-        {content.loading}
-      </main>
-    );
+    return <main className="screen-state">{content.loading}</main>;
   }
 
   if (experimentCompleted) {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10 sm:px-7">
-        <p className="text-xs font-semibold tracking-[0.28em] text-[var(--muted)]">
-          {content.appName}
-        </p>
-        <h1 className="mt-10 text-4xl font-medium tracking-[-0.05em]">
+      <main className="app-shell flex flex-col justify-center">
+        <p className="app-eyebrow">{content.appName}</p>
+        <h1 className="app-title mt-10">
           {content.intentions.experiment_completed_title}
         </h1>
-        <p className="mt-6 text-lg leading-7 text-[var(--muted)]">
+        <p className="app-lead mt-6">
           {content.intentions.experiment_completed_description}
         </p>
         <button
           onClick={() => router.push("/history")}
-          className="mt-10 min-h-14 rounded-full bg-[var(--foreground)] text-white"
+          className="primary-action mt-10"
         >
           {content.intentions.history_action}
         </button>
         <button
           onClick={() => router.push("/recovery")}
-          className="mt-3 min-h-12 text-sm text-[var(--muted)]"
+          className="quiet-action mt-3"
         >
           {content.activation.manage_recovery_action}
         </button>
@@ -137,15 +152,12 @@ export function IntentionEntry() {
 
   if (!step) {
     return (
-      <main className="grid min-h-dvh place-items-center px-5 text-center">
+      <main className="screen-state text-center">
         <div>
           <p role="alert" className="text-sm text-[var(--error)]">
             {error || content.requestError}
           </p>
-          <button
-            onClick={() => void load()}
-            className="mt-4 min-h-11 text-sm text-[var(--muted)]"
-          >
+          <button onClick={() => void load()} className="quiet-action mt-4">
             {content.retryAction}
           </button>
         </div>
@@ -155,10 +167,8 @@ export function IntentionEntry() {
 
   if (!showForm) {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-md flex-col px-5 py-8 sm:px-7">
-        <p className="text-xs font-semibold tracking-[0.28em] text-[var(--muted)]">
-          {content.appName}
-        </p>
+      <main className="app-shell flex flex-col">
+        <p className="app-eyebrow">{content.appName}</p>
         <section className="flex flex-1 flex-col justify-center">
           <p className="text-sm text-[var(--muted)]">
             {content.intentions.amount_intro}
@@ -168,15 +178,18 @@ export function IntentionEntry() {
           </h1>
         </section>
         <div className="space-y-3">
-          <button
-            className="min-h-14 w-full rounded-full bg-[var(--foreground)] text-white"
-            onClick={() => setShowForm(true)}
-          >
+          <button className="primary-action" onClick={() => setShowForm(true)}>
             {content.intentions.amount_action}
           </button>
-          {!draft ? (
+          <button
+            className="quiet-action"
+            onClick={openAbout}
+          >
+            {content.intentions.about_action}
+          </button>
+          {recoveryAvailable ? (
             <button
-              className="min-h-12 w-full text-sm text-[var(--muted)]"
+              className="quiet-action"
               onClick={() => router.push("/recovery")}
             >
               {content.activation.manage_recovery_action}
@@ -188,8 +201,8 @@ export function IntentionEntry() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col px-5 py-8 sm:px-7">
-      <p className="text-sm text-[var(--muted)]">
+    <main className="app-shell flex flex-col">
+      <p className="app-eyebrow">
         {amountLabel(step.amount_minor, step.currency)}
       </p>
       <form
@@ -213,7 +226,7 @@ export function IntentionEntry() {
           value={text}
           onChange={(event) => setText(event.target.value)}
           placeholder={content.intentions.input_placeholder}
-          className="mt-2 min-h-36 resize-y rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-lg leading-7 outline-none focus:border-[var(--foreground)]"
+          className="field-control mt-2 min-h-40 resize-y p-4 text-lg leading-7"
         />
         <div className="flex-1" />
         {error ? (
@@ -222,9 +235,13 @@ export function IntentionEntry() {
           </p>
         ) : null}
         <button
-          disabled={saving || !csrf}
-          className="mt-8 min-h-14 rounded-full bg-[var(--foreground)] text-white disabled:opacity-60"
+          type="button"
+          onClick={openAbout}
+          className="quiet-action mt-6"
         >
+          {content.intentions.about_action}
+        </button>
+        <button disabled={saving || !csrf} className="primary-action mt-8">
           {saving ? content.loading : content.intentions.save_draft_action}
         </button>
       </form>

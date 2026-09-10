@@ -28,6 +28,7 @@ describe("RecoveryScreen", () => {
               data: {
                 flow_state: "active",
                 credential_exists: true,
+                recovery_credential_issuable: true,
               },
             }
           : { data: { csrf_token: "csrf-value" } },
@@ -53,7 +54,7 @@ describe("RecoveryScreen", () => {
     expect(await screen.findByText("INTENTA-new-code")).toBeInTheDocument();
   });
 
-  it("allows issuance to be deferred before a first code exists", async () => {
+  it("does not offer issuance before the first activated Intention", async () => {
     mocks.get.mockImplementation((path: string) =>
       Promise.resolve(
         path === "/api/v1/me"
@@ -61,6 +62,7 @@ describe("RecoveryScreen", () => {
               data: {
                 flow_state: "ready_for_next",
                 credential_exists: false,
+                recovery_credential_issuable: false,
               },
             }
           : { data: { csrf_token: "csrf-value" } },
@@ -68,12 +70,69 @@ describe("RecoveryScreen", () => {
     );
     render(<RecoveryScreen />);
 
+    expect(
+      await screen.findByText(/можно выпустить после того/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Показать код" }),
+    ).not.toBeInTheDocument();
     fireEvent.click(
-      await screen.findByRole("button", { name: "Сделать позже" }),
+      screen.getByRole("button", { name: "Вернуться к Интенте" }),
     );
     expect(mocks.push).toHaveBeenCalledWith("/intention");
+  });
+
+  it("allows deferred issuance after a prior activation", async () => {
+    mocks.get.mockImplementation((path: string) =>
+      Promise.resolve(
+        path === "/api/v1/me"
+          ? {
+              data: {
+                flow_state: "ready_for_next",
+                credential_exists: false,
+                recovery_credential_issuable: true,
+              },
+            }
+          : { data: { csrf_token: "csrf-value" } },
+      ),
+    );
+    render(<RecoveryScreen />);
+
     expect(
-      screen.getByRole("button", { name: "Показать код" }),
+      await screen.findByRole("button", { name: "Показать код" }),
+    ).toBeInTheDocument();
+  });
+
+  it("recovers from a lost issuance response without asking for the old plaintext", async () => {
+    let credentialExists = false;
+    mocks.get.mockImplementation((path: string) =>
+      Promise.resolve(
+        path === "/api/v1/me"
+          ? {
+              data: {
+                flow_state: "active",
+                credential_exists: credentialExists,
+                recovery_credential_issuable: true,
+              },
+            }
+          : { data: { csrf_token: "csrf-value" } },
+      ),
+    );
+    mocks.post.mockResolvedValue({ data: undefined });
+    render(<RecoveryScreen />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Показать код" }),
+    );
+    credentialExists = true;
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Предыдущий код перестанет работать/),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("button", { name: "Создать новый код" }),
     ).toBeInTheDocument();
   });
 });

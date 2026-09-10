@@ -62,29 +62,29 @@ export function OnboardingFlow() {
   }
 
   if (isLoading) {
-    return (
-      <main className="grid min-h-dvh place-items-center px-5 text-sm text-[var(--muted)]">
-        {content.loading}
-      </main>
-    );
+    return <main className="screen-state">{content.loading}</main>;
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pt-8 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-7 sm:pt-12">
+    <main className="app-shell flex flex-col">
       <div className="flex items-center justify-between text-xs text-[var(--muted)]">
-        <span className="font-semibold tracking-[0.28em]">
-          {content.appName}
-        </span>
+        <span className="app-eyebrow">{content.appName}</span>
         <span
           aria-label={`Шаг ${step + 1} из ${content.onboardingSteps.length}`}
         >
           {step + 1} / {content.onboardingSteps.length}
         </span>
       </div>
+      <div className="mt-6 h-1 overflow-hidden rounded-full bg-[var(--surface-strong)]">
+        <div
+          className="h-full rounded-full bg-[var(--foreground)] transition-[width] duration-300"
+          style={{
+            width: `${((step + 1) / content.onboardingSteps.length) * 100}%`,
+          }}
+        />
+      </div>
       <section className="flex flex-1 items-center py-12">
-        <h1 className="text-[clamp(2rem,10vw,3.35rem)] leading-[1.08] font-medium tracking-[-0.045em]">
-          {current.title}
-        </h1>
+        <h1 className="app-title">{current.title}</h1>
       </section>
       <div>
         {error ? (
@@ -100,7 +100,7 @@ export function OnboardingFlow() {
             <button
               type="button"
               onClick={() => setStep((value) => value - 1)}
-              className="min-h-14 flex-1 rounded-full border border-[var(--border)] px-4 font-medium"
+              className="secondary-action flex-1"
             >
               {content.backAction}
             </button>
@@ -111,7 +111,7 @@ export function OnboardingFlow() {
             onClick={() =>
               isLast ? void complete() : setStep((value) => value + 1)
             }
-            className="min-h-14 flex-1 rounded-full bg-[var(--foreground)] px-4 font-medium text-white disabled:opacity-60"
+            className="primary-action flex-1"
           >
             {isSubmitting
               ? content.loading

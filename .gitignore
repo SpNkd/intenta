@@ -5,6 +5,7 @@
 node_modules/
 .pnpm-store/
 .next/
+apps/web/out/
 coverage/
 playwright-report/
 test-results/

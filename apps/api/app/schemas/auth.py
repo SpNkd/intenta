@@ -20,6 +20,7 @@ class MeResponse(BaseModel):
         "progression_unavailable",
     ]
     credential_exists: bool
+    recovery_credential_issuable: bool
     recovery_code_acknowledged: bool
 
 

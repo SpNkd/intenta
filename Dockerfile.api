@@ -1,0 +1,17 @@
+FROM python:3.13-slim-bookworm
+
+WORKDIR /app
+
+COPY apps/api/pyproject.toml apps/api/uv.lock /app/apps/api/
+RUN pip install --no-cache-dir uv==0.8.24 \
+    && cd /app/apps/api \
+    && uv sync --frozen --no-dev --no-install-project
+
+COPY apps/api /app/apps/api
+COPY content /app/content
+
+WORKDIR /app/apps/api
+ENV PATH="/app/apps/api/.venv/bin:${PATH}" \
+    PYTHONUNBUFFERED=1
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--proxy-headers", "--forwarded-allow-ips=172.30.0.0/24"]

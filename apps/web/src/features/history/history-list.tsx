@@ -82,15 +82,27 @@ export function HistoryList() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col px-5 py-8 sm:px-7">
-      <p className="text-xs font-semibold tracking-[0.28em] text-[var(--muted)]">
-        {content.appName}
-      </p>
-      <h1 className="mt-8 text-4xl font-medium tracking-[-0.05em]">
-        {content.history.title}
-      </h1>
+    <main className="app-shell flex flex-col">
+      <p className="app-eyebrow">{content.appName}</p>
+      <h1 className="app-title mt-8">{content.history.title}</h1>
       {loading ? (
         <p className="mt-12 text-sm text-[var(--muted)]">{content.loading}</p>
+      ) : error && items.length === 0 ? (
+        <section className="flex flex-1 flex-col justify-center">
+          <p role="alert" className="text-sm text-[var(--error)]">
+            {error}
+          </p>
+          <button
+            onClick={() => {
+              setError("");
+              setLoading(true);
+              void load().finally(() => setLoading(false));
+            }}
+            className="quiet-action mt-4"
+          >
+            {content.retryAction}
+          </button>
+        </section>
       ) : items.length === 0 ? (
         <section className="flex flex-1 flex-col justify-center">
           <h2 className="text-2xl font-medium tracking-[-0.03em]">
@@ -106,13 +118,13 @@ export function HistoryList() {
             <Link
               key={item.id}
               href={`/history/${item.id}`}
-              className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"
+              className="surface-card block p-5 hover:border-[var(--foreground)]"
             >
               <div className="flex items-baseline justify-between gap-4">
                 <h2 className="text-2xl font-medium tracking-[-0.04em]">
                   {amountLabel(item.amount_minor, item.currency)}
                 </h2>
-                <p className="text-right text-xs text-[var(--muted)]">
+                <p className="rounded-full bg-[var(--surface-strong)] px-2.5 py-1 text-right text-xs text-[var(--muted)]">
                   {statusLabel(item)}
                 </p>
               </div>
@@ -145,14 +157,14 @@ export function HistoryList() {
             <button
               disabled={loadingMore}
               onClick={() => void loadMore()}
-              className="min-h-12 w-full text-sm text-[var(--muted)] disabled:opacity-60"
+              className="quiet-action"
             >
               {loadingMore ? content.loading : content.history.load_more_action}
             </button>
           ) : null}
         </section>
       )}
-      {error ? (
+      {error && items.length > 0 ? (
         <div className="mt-4" role="alert">
           <p className="text-sm text-[var(--error)]">{error}</p>
           <button
@@ -161,7 +173,7 @@ export function HistoryList() {
               setLoading(true);
               void load().finally(() => setLoading(false));
             }}
-            className="mt-3 min-h-11 text-sm text-[var(--muted)]"
+            className="quiet-action mt-3"
           >
             {content.retryAction}
           </button>

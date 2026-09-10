@@ -158,3 +158,10 @@ rejected in production.
 allowlist before deploy; the application never trusts arbitrary `X-Forwarded-For` values.
 Production content is validated during FastAPI startup. API docs are disabled unless the
 explicit production policy enables them.
+
+Recovery rate limits are persisted in PostgreSQL, so limits apply across API workers and
+survive an application restart. Raw network addresses and recovery identifiers are never
+stored: bucket keys are HMAC-SHA-256 values derived from `RECOVERY_RATE_LIMIT_HMAC_KEY`.
+Recovery-secret hashing uses Argon2id (19 MiB memory, 2 iterations, 1 lane) in a bounded
+worker thread pool. `ARGON2_MAX_CONCURRENCY=2` is the initial baseline and should be sized
+to the memory available to each API instance.

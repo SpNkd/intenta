@@ -1,0 +1,127 @@
+import { decryptValue, deriveContentKey, encryptValue } from "./crypto";
+import {
+  getDeviceContentKey,
+  getStoredRecoveryContentKey,
+  storeRecoveryContentKey,
+} from "./key-vault";
+import {
+  attachRecoveryCode,
+  createRecoveryCode,
+  ensureAnonymousSession,
+  recoverWithCode,
+} from "./static-auth";
+import { supabase } from "./supabase";
+
+export type StaticIntention = {
+  id: string;
+  amount: number;
+  text: string;
+  statement: string;
+  status: "draft" | "active" | "completed";
+  createdAt: string;
+  activatedAt?: string;
+  completedAt?: string;
+  outcome?: "happened" | "not_happened" | "uncertain";
+  note?: string;
+};
+
+export type StaticState = {
+  onboarding: boolean;
+  intentions: StaticIntention[];
+};
+const amounts = [500, 1000, 2000, 5000, 10000];
+
+type Profile = {
+  id: string;
+  recovery_public_id: string | null;
+  encrypted_state: string | null;
+  state_iv: string | null;
+};
+
+async function profile(): Promise<Profile> {
+  const session = await ensureAnonymousSession();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id,recovery_public_id,encrypted_state,state_iv")
+    .eq("id", session.user.id)
+    .single();
+  if (error || !data) throw error ?? new Error("Profile is unavailable");
+  return data as Profile;
+}
+
+async function keyFor(profileData: Profile): Promise<CryptoKey> {
+  if (!profileData.recovery_public_id) return getDeviceContentKey();
+  const key = await getStoredRecoveryContentKey();
+  if (!key) throw new Error("RECOVERY_REQUIRED");
+  return key;
+}
+
+export async function loadState(): Promise<StaticState> {
+  const profileData = await profile();
+  if (!profileData.encrypted_state || !profileData.state_iv)
+    return { onboarding: false, intentions: [] };
+  return decryptValue<StaticState>(
+    {
+      ciphertext: profileData.encrypted_state,
+      iv: profileData.state_iv,
+      version: 1,
+    },
+    await keyFor(profileData),
+  );
+}
+
+export async function saveState(state: StaticState): Promise<void> {
+  const profileData = await profile();
+  const encrypted = await encryptValue(state, await keyFor(profileData));
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      encrypted_state: encrypted.ciphertext,
+      state_iv: encrypted.iv,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", profileData.id);
+  if (error) throw error;
+}
+
+export function nextAmount(state: StaticState): number | undefined {
+  const completed = state.intentions.filter(
+    (item) => item.status === "completed",
+  ).length;
+  return amounts[completed];
+}
+
+export async function issueRecovery(state: StaticState): Promise<string> {
+  const profileData = await profile();
+  const recovery = createRecoveryCode();
+  await attachRecoveryCode(recovery.publicId, recovery.secret);
+  const recoveryKey = await deriveContentKey(
+    recovery.secret,
+    recovery.publicId,
+  );
+  const encrypted = await encryptValue(state, recoveryKey);
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      recovery_public_id: recovery.publicId,
+      encrypted_state: encrypted.ciphertext,
+      state_iv: encrypted.iv,
+    })
+    .eq("id", profileData.id);
+  if (error) throw error;
+  await storeRecoveryContentKey(recoveryKey);
+  return recovery.code;
+}
+
+export async function recover(code: string): Promise<StaticState> {
+  const match =
+    /^INTENTA-([0-9A-HJKMNP-TV-Z]{8})-([0-9A-HJKMNP-TV-Z]{20})$/i.exec(
+      code.trim(),
+    );
+  if (!match) throw new Error("INVALID_CODE");
+  const publicId = match[1].toUpperCase();
+  const secret = match[2].toUpperCase();
+  await recoverWithCode(publicId, secret);
+  await storeRecoveryContentKey(await deriveContentKey(secret, publicId));
+  return loadState();
+}

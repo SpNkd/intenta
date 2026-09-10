@@ -1,18 +1,10 @@
 import type { NextConfig } from "next";
 
-const apiTarget = process.env.API_PROXY_TARGET ?? "http://127.0.0.1:8000";
-
 const nextConfig: NextConfig = {
   agentRules: false,
-  transpilePackages: ["@intenta/api-client"],
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${apiTarget}/api/:path*`,
-      },
-    ];
-  },
+  output: "export",
+  trailingSlash: true,
+  images: { unoptimized: true },
 };
 
 export default nextConfig;

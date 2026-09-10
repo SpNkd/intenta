@@ -1,9 +1,11 @@
 "use client";
+/* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
 
 import { api, type components } from "@intenta/api-client";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { content } from "../../lib/content";
+import { isUnauthorized } from "../../lib/private-request";
 
 type Intention = {
   id: string;
@@ -106,16 +108,22 @@ export function OutcomeScreen() {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
-  useEffect(() => {
-    void Promise.all([
-      api.GET("/api/v1/intentions/{intention_id}", {
-        params: { path: { intention_id: intentionId } },
-      }),
-      api.GET("/api/v1/auth/csrf"),
-    ]).then(async ([intentionResponse, csrfResponse]) => {
+  async function load() {
+    setLoading(true);
+    setLoadError("");
+    try {
+      const [intentionResponse, csrfResponse] = await Promise.all([
+        api.GET("/api/v1/intentions/{intention_id}", {
+          params: { path: { intention_id: intentionId } },
+        }),
+        api.GET("/api/v1/auth/csrf"),
+      ]);
       if (!intentionResponse.data) {
-        router.replace("/");
+        if (isUnauthorized(intentionResponse)) router.replace("/");
+        else setLoadError(content.requestError);
         return;
       }
       setIntention(intentionResponse.data);
@@ -123,14 +131,22 @@ export function OutcomeScreen() {
       if (intentionResponse.data.status === "completed") {
         const saved = await api.GET(
           "/api/v1/intentions/{intention_id}/outcome",
-          {
-            params: { path: { intention_id: intentionId } },
-          },
+          { params: { path: { intention_id: intentionId } } },
         );
         if (saved.data) setOutcome(saved.data);
+        else if (!isUnauthorized(saved)) setLoadError(content.requestError);
       }
-    });
-  }, [intentionId, router]);
+    } catch {
+      setLoadError(content.requestError);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+    // Route id is immutable during this screen lifetime; retry is explicit.
+  }, [intentionId]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -194,10 +210,20 @@ export function OutcomeScreen() {
     setOutcome(data);
   }
 
-  if (!intention) {
+  if (loading) {
+    return <main className="screen-state">{content.loading}</main>;
+  }
+  if (loadError || !intention) {
     return (
-      <main className="grid min-h-dvh place-items-center text-sm text-[var(--muted)]">
-        {content.loading}
+      <main className="screen-state text-center">
+        <div>
+          <p role="alert" className="text-sm text-[var(--error)]">
+            {loadError || content.requestError}
+          </p>
+          <button className="quiet-action mt-4" onClick={() => void load()}>
+            {content.retryAction}
+          </button>
+        </div>
       </main>
     );
   }
@@ -209,18 +235,12 @@ export function OutcomeScreen() {
           ? content.outcomes.summary_uncertain
           : content.outcomes.summary_not_happened;
     return (
-      <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10 sm:px-7">
-        <p className="text-xs font-semibold tracking-[0.28em] text-[var(--muted)]">
-          {content.appName}
-        </p>
-        <h1 className="mt-10 text-4xl font-medium tracking-[-0.05em]">
-          {content.outcomes.summary_title}
-        </h1>
-        <p className="mt-6 text-lg leading-7 text-[var(--muted)]">
-          {content.outcomes.summary_description}
-        </p>
+      <main className="app-shell flex flex-col justify-center">
+        <p className="app-eyebrow">{content.appName}</p>
+        <h1 className="app-title mt-10">{content.outcomes.summary_title}</h1>
+        <p className="app-lead mt-6">{content.outcomes.summary_description}</p>
         <p className="mt-8 text-base leading-7">{summary}</p>
-        <section className="mt-10 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+        <section className="surface-card mt-10 p-5">
           <p className="text-sm text-[var(--muted)]">
             {intention.intention_text_raw}
           </p>
@@ -263,13 +283,13 @@ export function OutcomeScreen() {
         </section>
         <button
           onClick={() => router.push("/intention")}
-          className="mt-10 min-h-14 rounded-full bg-[var(--foreground)] text-white"
+          className="primary-action mt-10"
         >
           {content.outcomes.continue_experiment_action}
         </button>
         <button
           onClick={() => router.push("/history")}
-          className="mt-3 min-h-12 text-sm text-[var(--muted)] disabled:opacity-60"
+          className="quiet-action mt-3"
         >
           {content.outcomes.view_history_action}
         </button>
@@ -278,19 +298,16 @@ export function OutcomeScreen() {
   }
   if (resolution !== "happened" && !closeChosen) {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10 sm:px-7">
-        <h1 className="text-4xl font-medium tracking-[-0.05em]">
-          {content.outcomes.close_title}
-        </h1>
-        <p className="mt-6 text-lg leading-7 text-[var(--muted)]">
-          {content.outcomes.close_description}
-        </p>
+      <main className="app-shell flex flex-col justify-center">
+        <p className="app-eyebrow">{content.appName}</p>
+        <h1 className="app-title mt-10">{content.outcomes.close_title}</h1>
+        <p className="app-lead mt-6">{content.outcomes.close_description}</p>
         <button
           onClick={() => {
             setResolution("not_happened");
             setCloseChosen(true);
           }}
-          className="mt-10 min-h-14 rounded-full bg-[var(--foreground)] text-white"
+          className="primary-action mt-10"
         >
           {content.outcomes.not_happened_action}
         </button>
@@ -299,7 +316,7 @@ export function OutcomeScreen() {
             setResolution("uncertain");
             setCloseChosen(true);
           }}
-          className="mt-3 min-h-12 text-sm text-[var(--muted)]"
+          className="secondary-action mt-3"
         >
           {content.outcomes.uncertain_action}
         </button>
@@ -307,18 +324,22 @@ export function OutcomeScreen() {
     );
   }
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col px-5 py-10 sm:px-7">
-      <h1 className="text-4xl font-medium tracking-[-0.05em]">
+    <main className="app-shell flex flex-col">
+      <p className="app-eyebrow">{content.appName}</p>
+      <h1 className="app-title mt-8">
         {resolution === "happened"
           ? content.outcomes.happened_title
           : content.outcomes.close_title}
       </h1>
-      <p className="mt-5 text-lg leading-7 text-[var(--muted)]">
+      <p className="app-lead mt-5">
         {resolution === "happened"
           ? content.outcomes.happened_description
           : content.outcomes.close_confirm_description}
       </p>
-      <form onSubmit={(event) => void submit(event)} className="mt-8 space-y-6">
+      <form
+        onSubmit={(event) => void submit(event)}
+        className="mt-8 space-y-7 pb-4"
+      >
         {resolution === "happened" ? (
           <>
             <label className="block text-sm text-[var(--muted)]">
@@ -330,7 +351,7 @@ export function OutcomeScreen() {
                     event.target.value as OutcomeInput["outcome_type"],
                   )
                 }
-                className="mt-2 min-h-12 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-[var(--foreground)]"
+                className="field-control mt-2"
               >
                 <option value="money">
                   {content.outcomes.event_type_money}
@@ -356,7 +377,7 @@ export function OutcomeScreen() {
                 inputMode="decimal"
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
-                className="mt-2 min-h-12 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-[var(--foreground)]"
+                className="field-control mt-2"
               />
             </label>
             <label className="block text-sm text-[var(--muted)]">
@@ -371,7 +392,7 @@ export function OutcomeScreen() {
                     >,
                   )
                 }
-                className="mt-2 min-h-12 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-[var(--foreground)]"
+                className="field-control mt-2"
               >
                 <option value="">{content.outcomes.source_none}</option>
                 <option value="gift">{content.outcomes.source_gift}</option>
@@ -403,7 +424,7 @@ export function OutcomeScreen() {
                 ].map(([value, label]) => (
                   <label
                     key={value}
-                    className={`rounded-xl border p-3 text-center text-sm transition-colors ${
+                    className={`min-h-12 rounded-xl border p-3 text-center text-sm transition-colors ${
                       wasExpected === value
                         ? "border-[var(--foreground)] bg-[var(--surface)] text-[var(--foreground)]"
                         : "border-[var(--border)]"
@@ -441,7 +462,7 @@ export function OutcomeScreen() {
                     >,
                   )
                 }
-                className="mt-2 min-h-12 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-[var(--foreground)]"
+                className="field-control mt-2"
               >
                 <option value="" disabled>
                   {content.outcomes.spending_placeholder}
@@ -465,7 +486,7 @@ export function OutcomeScreen() {
           <textarea
             value={note}
             onChange={(event) => setNote(event.target.value)}
-            className="mt-2 min-h-28 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-[var(--foreground)]"
+            className="field-control mt-2 min-h-28 resize-y"
           />
         </label>
         {error ? (
@@ -479,7 +500,7 @@ export function OutcomeScreen() {
             busy ||
             (resolution === "happened" && (!wasExpected || !spending))
           }
-          className="min-h-14 w-full rounded-full bg-[var(--foreground)] text-white disabled:opacity-60"
+          className="primary-action mt-2"
         >
           {busy ? content.loading : content.outcomes.save_action}
         </button>

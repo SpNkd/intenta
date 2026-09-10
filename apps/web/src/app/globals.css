@@ -7,6 +7,7 @@
   --muted: #686d65;
   --surface: #fffdf7;
   --border: #d9d2c3;
+  --surface-strong: #eee8dc;
   --success: #42624d;
   --error: #8a3f37;
 }
@@ -19,5 +20,141 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a {
+  transition:
+    opacity 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 3px;
+}
+
+.app-shell {
+  width: 100%;
+  max-width: 28rem;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 2rem 1.25rem max(2rem, env(safe-area-inset-bottom));
+}
+
+.app-eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.24em;
+  color: var(--muted);
+}
+
+.app-title {
+  font-size: clamp(2.35rem, 11vw, 3.75rem);
+  line-height: 0.98;
+  font-weight: 500;
+  letter-spacing: -0.055em;
+}
+
+.app-lead {
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+.surface-card {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+}
+
+.primary-action,
+.secondary-action,
+.quiet-action {
+  display: inline-flex;
+  min-height: 3.5rem;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 0.75rem 1.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.primary-action {
+  background: var(--foreground);
+  color: white;
+}
+
+.primary-action:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.secondary-action {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+.quiet-action {
+  min-height: 3rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.primary-action:disabled,
+.secondary-action:disabled,
+.quiet-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.field-control {
+  width: 100%;
+  min-height: 3.15rem;
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+  background: var(--surface);
+  padding: 0.75rem;
+  color: var(--foreground);
+}
+
+.screen-state {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 1.25rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+@media (min-width: 640px) {
+  .app-shell {
+    padding-left: 1.75rem;
+    padding-right: 1.75rem;
+    padding-top: 3rem;
+  }
 }

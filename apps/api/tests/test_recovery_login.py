@@ -10,7 +10,7 @@ from app.api.v1.routes import auth as auth_routes
 from app.api.v1.routes import recovery as recovery_routes
 from app.core.database import SessionFactory
 from app.main import app
-from app.models import AnonymousUser, RecoveryCredential
+from app.models import AnonymousUser, RateLimitBucket, RecoveryCredential
 from app.services import recovery as recovery_service
 
 ORIGIN = "http://127.0.0.1:3000"
@@ -19,14 +19,13 @@ ORIGIN = "http://127.0.0.1:3000"
 @pytest.fixture(autouse=True)
 async def reset_recovery_rate_limiters():
     auth_routes.anonymous_rate_limiter = None
-    await recovery_routes.recovery_rate_limiter.reset()
-    await recovery_routes.recovery_scoped_rate_limiter.reset()
-    await recovery_routes.credential_issuance_rate_limiter.reset()
-    auth_routes.anonymous_rate_limiter = None
+    async with SessionFactory() as db:
+        await db.execute(delete(RateLimitBucket))
+        await db.commit()
     yield
-    await recovery_routes.recovery_rate_limiter.reset()
-    await recovery_routes.recovery_scoped_rate_limiter.reset()
-    await recovery_routes.credential_issuance_rate_limiter.reset()
+    async with SessionFactory() as db:
+        await db.execute(delete(RateLimitBucket))
+        await db.commit()
 
 
 async def active_intention_client() -> tuple[AsyncClient, str, str]:
@@ -175,12 +174,14 @@ async def test_recovery_cannot_create_a_session_for_a_credential_replaced_mid_lo
     verified = asyncio.Event()
     original_hasher = recovery_service.hasher
 
+    loop = asyncio.get_running_loop()
+
     class SignalingHasher:
         def hash(self, secret: str) -> str:
             return original_hasher.hash(secret)
 
         def verify(self, encoded_hash: str, secret: str) -> bool:
-            verified.set()
+            loop.call_soon_threadsafe(verified.set)
             return original_hasher.verify(encoded_hash, secret)
 
     try:
@@ -366,8 +367,9 @@ async def test_recovery_has_general_and_hmac_scoped_rate_limits() -> None:
         )
         assert general_limited.status_code == 429
 
-        await recovery_routes.recovery_rate_limiter.reset()
-        await recovery_routes.recovery_scoped_rate_limiter.reset()
+        async with SessionFactory() as db:
+            await db.execute(delete(RateLimitBucket))
+            await db.commit()
         scoped_code = "INTENTA-ABCDEFGH-00000000000000000000"
         for index in range(5):
             client = AsyncClient(
@@ -409,6 +411,60 @@ async def test_unknown_public_id_uses_dummy_argon_verification(monkeypatch) -> N
         )
         assert response.status_code == 401
         assert verified_hashes == [recovery_service.DUMMY_SECRET_HASH]
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_recovery_rate_limit_runs_before_argon_verification(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    verification_calls = 0
+
+    async def verify(_: object, __: str) -> None:
+        nonlocal verification_calls
+        verification_calls += 1
+        return None
+
+    monkeypatch.setattr(recovery_routes, "verify_credential", verify)
+    client = AsyncClient(transport=ASGITransport(app=app), base_url=ORIGIN)
+    try:
+        code = "INTENTA-ABCDEFGH-00000000000000000000"
+        for _ in range(5):
+            response = await client.post("/api/v1/auth/recover", json={"code": code})
+            assert response.status_code == 401
+        assert (await client.post("/api/v1/auth/recover", json={"code": code})).status_code == 429
+        assert verification_calls == 5
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_untrusted_forwarded_for_cannot_bypass_network_recovery_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def no_argon(_: object, __: str) -> None:
+        return None
+
+    monkeypatch.setattr(recovery_routes, "verify_credential", no_argon)
+    client = AsyncClient(
+        transport=ASGITransport(app=app, client=("198.51.100.10", 5000)), base_url=ORIGIN
+    )
+    try:
+        for index in range(10):
+            public_id = recovery_service._encode_crockford(index, 8)
+            response = await client.post(
+                "/api/v1/auth/recover",
+                headers={"X-Forwarded-For": f"203.0.113.{index + 1}"},
+                json={"code": f"INTENTA-{public_id}-00000000000000000000"},
+            )
+            assert response.status_code == 401
+        response = await client.post(
+            "/api/v1/auth/recover",
+            headers={"X-Forwarded-For": "203.0.113.250"},
+            json={"code": "INTENTA-ZZZZZZZZ-00000000000000000000"},
+        )
+        assert response.status_code == 429
     finally:
         await client.aclose()
 

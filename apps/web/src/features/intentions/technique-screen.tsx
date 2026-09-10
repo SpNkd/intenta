@@ -49,21 +49,15 @@ export function TechniqueScreen() {
     const me = await api.GET("/api/v1/me");
     router.push(me.data?.credential_exists ? "/home" : "/recovery");
   }
-  if (!draft)
-    return (
-      <main className="grid min-h-dvh place-items-center text-sm text-[var(--muted)]">
-        {content.loading}
-      </main>
-    );
+  if (!draft) return <main className="screen-state">{content.loading}</main>;
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10 sm:px-7">
-      <p className="text-xs font-semibold tracking-[0.28em] text-[var(--muted)]">
+    <main className="app-shell flex flex-col justify-center">
+      <p className="app-eyebrow">{content.appName} · 3 / 3</p>
+      <p className="mt-8 text-sm text-[var(--muted)]">
         {content.intentions.technique_label}
       </p>
-      <h1 className="mt-10 text-[clamp(2.8rem,13vw,4rem)] leading-none font-medium tracking-[-0.05em]">
-        {draft.technique.title}
-      </h1>
-      <p className="mt-8 text-xl leading-8 text-[var(--muted)]">
+      <h1 className="app-title mt-4">{draft.technique.title}</h1>
+      <p className="surface-card mt-8 p-5 text-lg leading-8 text-[var(--muted)]">
         {draft.technique.instruction}
       </p>
       <div className="mt-12">
@@ -75,7 +69,7 @@ export function TechniqueScreen() {
         <button
           disabled={activating || !csrf}
           onClick={() => void activate()}
-          className="min-h-14 w-full rounded-full bg-[var(--foreground)] text-white disabled:opacity-60"
+          className="primary-action"
         >
           {activating ? content.loading : content.activation.activate_action}
         </button>

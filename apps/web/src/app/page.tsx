@@ -1,5 +1,5 @@
-import { Landing } from "../features/auth/landing";
+import { StaticApp } from "../features/static-app";
 
 export default function Home() {
-  return <Landing />;
+  return <StaticApp />;
 }

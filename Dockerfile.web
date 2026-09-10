@@ -1,0 +1,20 @@
+FROM node:22.13.1-bookworm-slim
+
+WORKDIR /app
+RUN npm install --global pnpm@11.19.0
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml /app/
+COPY apps/web/package.json /app/apps/web/package.json
+COPY packages/api-client/package.json /app/packages/api-client/package.json
+RUN pnpm install --frozen-lockfile
+
+COPY apps/web /app/apps/web
+COPY packages/api-client /app/packages/api-client
+COPY content /app/content
+
+ENV API_PROXY_TARGET=http://api:8000 \
+    NODE_ENV=production
+RUN pnpm --filter @intenta/web build
+
+EXPOSE 3000
+CMD ["pnpm", "--filter", "@intenta/web", "start"]

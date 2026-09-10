@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-intenta}
+      POSTGRES_USER: ${POSTGRES_USER:-intenta}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - intenta_postgres_data:/var/lib/postgresql/data
+    networks: [intenta]
+
+  api:
+    image: intenta-api:deploy
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    env_file: .env.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [intenta]
+
+  web:
+    image: intenta-web:deploy
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    restart: unless-stopped
+    depends_on: [api]
+    command: pnpm --filter @intenta/web exec next start --hostname 0.0.0.0 --port 3000
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks: [intenta]
+
+networks:
+  intenta:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  intenta_postgres_data:

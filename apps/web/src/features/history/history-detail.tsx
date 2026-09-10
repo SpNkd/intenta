@@ -97,31 +97,24 @@ export function HistoryDetail() {
 
   if (error) {
     return (
-      <main className="grid min-h-dvh place-items-center px-5 text-center">
+      <main className="screen-state text-center">
         <p role="alert" className="text-sm text-[var(--error)]">
           {error}
         </p>
         <button
-          className="mt-4 text-sm text-[var(--muted)]"
+          className="quiet-action mt-4"
           onClick={() => router.push("/history")}
         >
           {content.history.back_action}
         </button>
-        <button
-          className="mt-2 text-sm text-[var(--muted)]"
-          onClick={() => void load()}
-        >
+        <button className="quiet-action mt-2" onClick={() => void load()}>
           {content.retryAction}
         </button>
       </main>
     );
   }
   if (!intention) {
-    return (
-      <main className="grid min-h-dvh place-items-center text-sm text-[var(--muted)]">
-        {content.loading}
-      </main>
-    );
+    return <main className="screen-state">{content.loading}</main>;
   }
 
   const date = (value: string) =>
@@ -129,27 +122,26 @@ export function HistoryDetail() {
       new Date(value),
     );
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col px-5 py-8 sm:px-7">
-      <Link href="/history" className="min-h-11 text-sm text-[var(--muted)]">
+    <main className="app-shell flex flex-col">
+      <Link
+        href="/history"
+        className="inline-flex min-h-11 items-center text-sm text-[var(--muted)]"
+      >
         ← {content.history.back_action}
       </Link>
-      <p className="mt-7 text-xs font-semibold tracking-[0.28em] text-[var(--muted)]">
-        {content.appName}
-      </p>
-      <h1 className="mt-5 text-4xl font-medium tracking-[-0.05em]">
-        {content.history.detail_title}
-      </h1>
+      <p className="app-eyebrow mt-7">{content.appName}</p>
+      <h1 className="app-title mt-5">{content.history.detail_title}</h1>
       <p className="mt-6 text-[clamp(3.5rem,18vw,5.5rem)] leading-none font-medium tracking-[-0.07em]">
         {amountLabel(intention.amount_minor, intention.currency)}
       </p>
 
-      <section className="mt-10 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+      <section className="surface-card mt-10 p-5">
         <h2 className="text-sm text-[var(--muted)]">
           {content.history.intention_label}
         </h2>
         <p className="mt-3 text-lg leading-7">{intention.intention_text_raw}</p>
       </section>
-      <section className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+      <section className="surface-card mt-3 p-5">
         <h2 className="text-sm text-[var(--muted)]">
           {content.history.statement_label}
         </h2>
@@ -157,7 +149,7 @@ export function HistoryDetail() {
           {intention.intention_statement}
         </p>
       </section>
-      <section className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+      <section className="surface-card mt-3 p-5">
         <h2 className="text-sm text-[var(--muted)]">
           {content.history.technique_label}
         </h2>
@@ -196,7 +188,7 @@ export function HistoryDetail() {
         ) : null}
       </section>
 
-      <section className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+      <section className="surface-card mt-8 p-5">
         <h2 className="text-xl font-medium tracking-[-0.03em]">
           {content.history.outcome_title}
         </h2>

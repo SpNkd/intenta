@@ -43,6 +43,7 @@ class IntentionContent(BaseModel):
 
     amount_intro: str
     amount_action: str
+    about_action: str
     question: str
     input_label: str
     input_placeholder: str

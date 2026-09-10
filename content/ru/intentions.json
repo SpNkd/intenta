@@ -5,6 +5,7 @@
   "data": {
     "amount_intro": "Следующая сумма",
     "amount_action": "Продолжить",
+    "about_action": "Как это устроено",
     "question": "Если эти деньги неожиданно появятся в твоей жизни — на что именно ты потратишь их для себя?",
     "input_label": "Моё намерение",
     "input_placeholder": "Например, куплю себе хорошие наушники",
@@ -16,7 +17,7 @@
     "technique_label": "Техника",
     "statement_template_key": "intention_statement",
     "statement_template_version": "1",
-    "statement_template": "Если в моей жизни неожиданно появятся {amount},\nя потрачу их на то, что выбрал для себя:\n\n«{intention_text}»\n\nЭто моё намерение.",
+    "statement_template": "Когда в моей жизни неожиданно появятся {amount},\nя потрачу их на то, что выбрал для себя:\n\n«{intention_text}»\n\nЭто моё намерение.",
     "experiment_completed_title": "Эксперимент завершён",
     "experiment_completed_description": "Все доступные шаги уже пройдены. К ним можно вернуться в истории.",
     "history_action": "Посмотреть историю"
