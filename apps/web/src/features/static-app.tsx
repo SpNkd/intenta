@@ -31,6 +31,15 @@ const statement = (amount: number, intentionText: string) =>
     .replace("{amount}", `${amount.toLocaleString("ru-RU")} ₽`)
     .replace("{intention_text}", intentionText);
 
+function displayStatement(intention: StaticIntention): string {
+  // Drafts made by the first static release contain the old generic sentence.
+  // The original intention text remains encrypted in `text`, so render the
+  // canonical statement rather than asking a person to enter it again.
+  return intention.statement.includes(intention.text)
+    ? intention.statement
+    : statement(intention.amount, intention.text);
+}
+
 const persistentScreens = new Set<Exclude<Screen, "recovery" | "code">>([
   "landing",
   "onboarding",
@@ -321,7 +330,7 @@ export function StaticApp() {
         <h1 className="app-title mt-9">{content.intentions.paper_title}</h1>
         <p className="app-lead mt-6">{content.intentions.paper_instruction}</p>
         <blockquote className="surface-card my-10 whitespace-pre-line border-l-2 border-l-[var(--foreground)] p-5 text-xl leading-8">
-          {current.statement}
+          {displayStatement(current)}
         </blockquote>
         <div className="mt-auto space-y-3">
           <button
