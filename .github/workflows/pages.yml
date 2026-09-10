@@ -35,6 +35,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://ksltazqhrimgkcttehlp.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzbHRhenFocmltZ2tjdHRlaGxwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNTQ5NzcsImV4cCI6MjEwNDYzMDk3N30.2tRqtDq7lc3fuNRHdXaFf58JhbLS_XlI4jmtY-gq48A
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: apps/web/out
