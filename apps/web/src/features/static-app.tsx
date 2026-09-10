@@ -161,6 +161,12 @@ export function StaticApp() {
         >
           Продолжить
         </button>
+        <button
+          className="quiet-action mt-3"
+          onClick={() => setScreen("landing")}
+        >
+          {content.backAction}
+        </button>
       </main>
     );
   if (screen === "recovery")
@@ -207,6 +213,12 @@ export function StaticApp() {
             Восстановить
           </button>
         </form>
+        <button
+          className="quiet-action mt-3"
+          onClick={() => setScreen("landing")}
+        >
+          {content.backAction}
+        </button>
       </main>
     );
   if (screen === "amount")
@@ -238,6 +250,12 @@ export function StaticApp() {
           onClick={() => setScreen("history")}
         >
           История
+        </button>
+        <button
+          className="quiet-action mt-3"
+          onClick={() => setScreen("onboarding")}
+        >
+          Как это устроено
         </button>
       </main>
     );
@@ -470,6 +488,12 @@ export function StaticApp() {
             >
               Я сохранил код
             </button>
+            <button
+              className="quiet-action mt-3"
+              onClick={() => setScreen("active")}
+            >
+              {content.backAction}
+            </button>
           </>
         ) : (
           <>
@@ -493,6 +517,12 @@ export function StaticApp() {
             {error && (
               <p className="mt-3 text-sm text-[var(--error)]">{error}</p>
             )}
+            <button
+              className="quiet-action mt-3"
+              onClick={() => setScreen("active")}
+            >
+              {content.backAction}
+            </button>
           </>
         )}
       </main>
