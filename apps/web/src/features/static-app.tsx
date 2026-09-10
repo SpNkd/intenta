@@ -43,6 +43,38 @@ function displayStatement(intention: StaticIntention): string {
     : statement(intention.amount, intention.text);
 }
 
+const outcomeTypeLabels: Record<StaticOutcome["outcomeType"], string> = {
+  money: content.outcomes.event_type_money,
+  other_amount: content.outcomes.event_type_other_amount,
+  opportunity: content.outcomes.event_type_opportunity,
+  similar: content.outcomes.event_type_similar,
+  other: content.outcomes.event_type_other,
+  none: "",
+};
+
+const sourceLabels: Record<NonNullable<StaticOutcome["sourceType"]>, string> = {
+  gift: content.outcomes.source_gift,
+  refund: content.outcomes.source_refund,
+  bonus_or_cashback: content.outcomes.source_bonus_or_cashback,
+  extra_income: content.outcomes.source_extra_income,
+  found_money: content.outcomes.source_found_money,
+  saving_or_discount: content.outcomes.source_saving_or_discount,
+  other: content.outcomes.source_other,
+};
+
+const expectedLabels: Record<NonNullable<StaticOutcome["wasExpected"]>, string> = {
+  yes: content.outcomes.expected_yes,
+  no: content.outcomes.expected_no,
+  unsure: content.outcomes.expected_unsure,
+};
+
+const spendingLabels: Record<NonNullable<StaticOutcome["spending"]>, string> = {
+  yes: content.outcomes.spending_yes,
+  not_yet: content.outcomes.spending_not_yet,
+  chose_other: content.outcomes.spending_chose_other,
+  did_not_spend: content.outcomes.spending_did_not_spend,
+};
+
 const persistentScreens = new Set<Exclude<Screen, "recovery" | "code">>([
   "landing",
   "onboarding",
@@ -691,7 +723,20 @@ export function StaticApp() {
         <section className="surface-card mt-10 p-5"><h2 className="text-sm text-[var(--muted)]">{content.history.intention_label}</h2><p className="mt-3 text-lg leading-7">{item.text}</p></section>
         <section className="surface-card mt-3 p-5"><h2 className="text-sm text-[var(--muted)]">{content.history.statement_label}</h2><p className="mt-3 whitespace-pre-wrap text-base leading-7">{displayStatement(item)}</p></section>
         <section className="surface-card mt-3 p-5"><h2 className="text-sm text-[var(--muted)]">{content.history.technique_label}</h2><h3 className="mt-3 text-lg font-medium">Остановись на минуту</h3><p className="mt-2 leading-7 text-[var(--muted)]">Прочитай написанное один раз, отложи лист и возвращайся к обычным делам.</p></section>
-        <section className="surface-card mt-3 p-5"><h2 className="text-xl font-medium tracking-[-0.03em]">{content.history.outcome_title}</h2><p className="mt-3 leading-7">{status}</p>{outcome?.note ? <p className="mt-3 whitespace-pre-wrap">{outcome.note}</p> : null}{outcome?.amountReceivedMinor !== undefined ? <p className="mt-3 text-2xl">{(outcome.amountReceivedMinor / 100).toLocaleString("ru-RU")} ₽</p> : null}</section>
+        <section className="surface-card mt-3 p-5">
+          <h2 className="text-xl font-medium tracking-[-0.03em]">{content.history.outcome_title}</h2>
+          <p className="mt-3 leading-7">{status}</p>
+          {outcome?.outcomeType && outcome.outcomeType !== "none" ? (
+            <div className="mt-4 space-y-3 text-base leading-7">
+              <p><span className="text-[var(--muted)]">{content.outcomes.event_type_label}: </span>{outcomeTypeLabels[outcome.outcomeType]}</p>
+              {outcome.sourceType ? <p><span className="text-[var(--muted)]">{content.outcomes.source_label}: </span>{sourceLabels[outcome.sourceType]}</p> : null}
+              {outcome.wasExpected ? <p><span className="text-[var(--muted)]">{content.outcomes.expected_label}: </span>{expectedLabels[outcome.wasExpected]}</p> : null}
+              {outcome.spending ? <p><span className="text-[var(--muted)]">{content.outcomes.spending_label}: </span>{spendingLabels[outcome.spending]}</p> : null}
+            </div>
+          ) : null}
+          {outcome?.amountReceivedMinor !== undefined ? <p className="mt-4 text-2xl">{(outcome.amountReceivedMinor / 100).toLocaleString("ru-RU")} ₽</p> : null}
+          {outcome?.note ? <p className="mt-4 whitespace-pre-wrap leading-7">{outcome.note}</p> : null}
+        </section>
         {item.status === "draft" ? (
           <div className="mt-8 space-y-3">
             <button className="primary-action" onClick={() => setScreen("paper")}>Продолжить создание</button>
