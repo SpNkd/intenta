@@ -124,6 +124,10 @@ async function profile(): Promise<Profile> {
   return data as Profile;
 }
 
+export async function hasRecoveryCredential(): Promise<boolean> {
+  return Boolean((await profile()).recovery_public_id);
+}
+
 async function keyFor(profileData: Profile): Promise<CryptoKey> {
   if (!profileData.recovery_public_id) return getDeviceContentKey();
   const key = await getStoredRecoveryContentKey();

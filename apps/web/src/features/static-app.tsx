@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { content } from "../lib/content";
 import {
   issueRecovery,
+  hasRecoveryCredential,
   loadState,
   nextAmount,
   recover,
@@ -112,6 +113,8 @@ export function StaticApp() {
   const [note, setNote] = useState("");
   const [code, setCode] = useState("");
   const [shownCode, setShownCode] = useState("");
+  const [hasRecovery, setHasRecovery] = useState(false);
+  const [confirmReplacement, setConfirmReplacement] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const hasLoaded = useRef(false);
@@ -128,9 +131,10 @@ export function StaticApp() {
   }, [state]);
 
   useEffect(() => {
-    void loadState()
-      .then((loaded) => {
+    void Promise.all([loadState(), hasRecoveryCredential()])
+      .then(([loaded, recoveryExists]) => {
         setState(loaded);
+        setHasRecovery(recoveryExists);
         if (loaded.onboarding) {
           setScreen(
             loaded.lastScreen ??
@@ -501,7 +505,13 @@ export function StaticApp() {
         >
           История
         </button>
-        <button className="quiet-action mt-3" onClick={() => setScreen("code")}>
+        <button
+          className="quiet-action mt-3"
+          onClick={() => {
+            setConfirmReplacement(false);
+            setScreen("code");
+          }}
+        >
           Код доступа
         </button>
       </main>
@@ -642,7 +652,9 @@ export function StaticApp() {
     return (
       <main className="app-shell flex flex-col justify-center">
         <p className="app-eyebrow">ИНТЕНТА</p>
-        <h1 className="app-title mt-8">Сохрани доступ</h1>
+        <h1 className="app-title mt-8">
+          {hasRecovery ? "Создать новый код" : "Сохрани доступ"}
+        </h1>
         {shownCode ? (
           <>
             <p className="field-control mt-8 break-all p-4 font-mono text-sm">
@@ -653,6 +665,25 @@ export function StaticApp() {
               onClick={() => setScreen("active")}
             >
               Я сохранил код
+            </button>
+            <button
+              className="quiet-action mt-3"
+              onClick={() => setScreen("active")}
+            >
+              {content.backAction}
+            </button>
+          </>
+        ) : hasRecovery && !confirmReplacement ? (
+          <>
+            <p className="app-lead mt-6">
+              Предыдущий код перестанет работать. Новый код будет показан только
+              один раз.
+            </p>
+            <button
+              className="primary-action mt-8"
+              onClick={() => setConfirmReplacement(true)}
+            >
+              Продолжить
             </button>
             <button
               className="quiet-action mt-3"
@@ -674,6 +705,7 @@ export function StaticApp() {
                 setBusy(true);
                 void issueRecovery(state)
                   .then(setShownCode)
+                  .then(() => setHasRecovery(true))
                   .catch(() => setError("Не удалось выдать код."))
                   .finally(() => setBusy(false));
               }}
