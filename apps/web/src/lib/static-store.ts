@@ -12,6 +12,24 @@ import {
 } from "./static-auth";
 import { supabase } from "./supabase";
 
+export type StaticOutcome = {
+  resolution: "happened" | "not_happened" | "uncertain";
+  outcomeType: "money" | "other_amount" | "opportunity" | "similar" | "other" | "none";
+  sourceType?:
+    | "gift"
+    | "refund"
+    | "bonus_or_cashback"
+    | "extra_income"
+    | "found_money"
+    | "saving_or_discount"
+    | "other";
+  amountReceivedMinor?: number;
+  wasExpected?: "yes" | "no" | "unsure";
+  spending?: "yes" | "not_yet" | "chose_other" | "did_not_spend";
+  note?: string;
+  createdAt: string;
+};
+
 export type StaticIntention = {
   id: string;
   amount: number;
@@ -21,8 +39,9 @@ export type StaticIntention = {
   createdAt: string;
   activatedAt?: string;
   completedAt?: string;
-  outcome?: "happened" | "not_happened" | "uncertain";
-  note?: string;
+  // String values are retained so drafts made by the first static build keep
+  // opening correctly; all new outcomes use the complete object above.
+  outcome?: StaticOutcome | StaticOutcome["resolution"];
 };
 
 export type StaticState = {
@@ -39,7 +58,10 @@ export type StaticState = {
     | "technique"
     | "active"
     | "outcome"
-    | "history";
+    | "outcome-summary"
+    | "history"
+    | "detail";
+  selectedIntentionId?: string;
 };
 const amounts = [500, 1000, 2000, 5000, 10000];
 
