@@ -83,10 +83,17 @@ export function StaticApp() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const hasLoaded = useRef(false);
-  const current = useMemo(
-    () => state?.intentions.find((item) => item.status !== "completed"),
-    [state],
-  );
+  const current = useMemo(() => {
+    if (!state) return undefined;
+    // Old test builds could leave several drafts. An active Intention always
+    // wins; otherwise continue the newest draft, never an earlier one.
+    return (
+      state.intentions.find((item) => item.status === "active") ??
+      [...state.intentions]
+        .reverse()
+        .find((item) => item.status === "draft")
+    );
+  }, [state]);
 
   useEffect(() => {
     void loadState()
@@ -562,7 +569,9 @@ export function StaticApp() {
       </main>
     );
   if (screen === "outcome-summary") {
-    const completed = state.intentions.find((item) => item.status === "completed" && item.completedAt);
+    const completed = [...state.intentions]
+      .reverse()
+      .find((item) => item.status === "completed" && item.completedAt);
     const saved = completed?.outcome;
     const resolution = typeof saved === "string" ? saved : saved?.resolution;
     return (
