@@ -304,16 +304,31 @@ export function StaticApp() {
           onSubmit={(event: FormEvent) => {
             event.preventDefault();
             if (!amount || !text.trim()) return;
-            const item: StaticIntention = {
-              id: crypto.randomUUID(),
-              amount,
-              text: text.trim(),
-              statement: statement(amount, text.trim()),
-              status: "draft",
-              createdAt: new Date().toISOString(),
-            };
+            const item: StaticIntention =
+              current?.status === "draft"
+                ? {
+                    ...current,
+                    text: text.trim(),
+                    statement: statement(amount, text.trim()),
+                  }
+                : {
+                    id: crypto.randomUUID(),
+                    amount,
+                    text: text.trim(),
+                    statement: statement(amount, text.trim()),
+                    status: "draft",
+                    createdAt: new Date().toISOString(),
+                  };
             void persist(
-              { ...state, intentions: [...state.intentions, item] },
+              {
+                ...state,
+                intentions:
+                  current?.status === "draft"
+                    ? state.intentions.map((existing) =>
+                        existing.id === current.id ? item : existing,
+                      )
+                    : [...state.intentions, item],
+              },
               "paper",
             );
           }}
@@ -366,7 +381,13 @@ export function StaticApp() {
           >
             {content.intentions.paper_written_action}
           </button>
-          <button className="quiet-action" onClick={() => setScreen("write")}>
+          <button
+            className="quiet-action"
+            onClick={() => {
+              setText(current.text);
+              setScreen("write");
+            }}
+          >
             {content.intentions.edit_action}
           </button>
         </div>
@@ -671,7 +692,26 @@ export function StaticApp() {
         <section className="surface-card mt-3 p-5"><h2 className="text-sm text-[var(--muted)]">{content.history.statement_label}</h2><p className="mt-3 whitespace-pre-wrap text-base leading-7">{displayStatement(item)}</p></section>
         <section className="surface-card mt-3 p-5"><h2 className="text-sm text-[var(--muted)]">{content.history.technique_label}</h2><h3 className="mt-3 text-lg font-medium">Остановись на минуту</h3><p className="mt-2 leading-7 text-[var(--muted)]">Прочитай написанное один раз, отложи лист и возвращайся к обычным делам.</p></section>
         <section className="surface-card mt-3 p-5"><h2 className="text-xl font-medium tracking-[-0.03em]">{content.history.outcome_title}</h2><p className="mt-3 leading-7">{status}</p>{outcome?.note ? <p className="mt-3 whitespace-pre-wrap">{outcome.note}</p> : null}{outcome?.amountReceivedMinor !== undefined ? <p className="mt-3 text-2xl">{(outcome.amountReceivedMinor / 100).toLocaleString("ru-RU")} ₽</p> : null}</section>
-        {item.status === "draft" ? <button className="primary-action mt-8" onClick={() => setScreen("paper")}>Продолжить создание</button> : null}
+        {item.status === "draft" ? (
+          <div className="mt-8 space-y-3">
+            <button className="primary-action" onClick={() => setScreen("paper")}>Продолжить создание</button>
+            <button
+              className="quiet-action text-[var(--error)]"
+              onClick={() => {
+                const next = {
+                  ...state,
+                  intentions: state.intentions.filter(
+                    (intention) => intention.id !== item.id,
+                  ),
+                  selectedIntentionId: undefined,
+                };
+                void persist(next, "history");
+              }}
+            >
+              Удалить черновик
+            </button>
+          </div>
+        ) : null}
       </main>
     );
   }
