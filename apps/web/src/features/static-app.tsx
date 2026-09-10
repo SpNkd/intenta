@@ -219,17 +219,27 @@ export function StaticApp() {
             );
           }}
         >
-          <h1 className="mt-10 text-3xl font-medium">
-            На что ты готов потратить эту сумму?
+          <h1 className="mt-10 text-[clamp(2rem,9vw,3rem)] leading-[1.08] font-medium tracking-[-0.04em]">
+            {content.intentions.question}
           </h1>
+          <label
+            className="mt-10 text-sm text-[var(--muted)]"
+            htmlFor="intention-text"
+          >
+            {content.intentions.input_label}
+          </label>
           <textarea
-            className="field-control mt-10 min-h-36 p-4"
+            id="intention-text"
+            className="field-control mt-2 min-h-40 resize-y p-4 text-lg leading-7"
             value={text}
             onChange={(event) => setText(event.target.value)}
+            placeholder={content.intentions.input_placeholder}
+            minLength={3}
+            maxLength={500}
             required
           />
           <button className="primary-action mt-auto" disabled={busy}>
-            Продолжить
+            {content.intentions.save_draft_action}
           </button>
         </form>
       </main>
