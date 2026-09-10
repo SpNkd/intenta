@@ -19,6 +19,7 @@ type Screen =
   | "amount"
   | "write"
   | "paper"
+  | "technique"
   | "active"
   | "outcome"
   | "history"
@@ -247,18 +248,39 @@ export function StaticApp() {
   if (screen === "paper" && current)
     return (
       <main className="app-shell flex flex-col">
-        <p className="app-eyebrow">ИНТЕНТА</p>
-        <section className="flex flex-1 flex-col justify-center">
-          <p className="text-sm text-[var(--muted)]">Перепиши от руки</p>
-          <h1 className="mt-5 text-3xl font-medium leading-tight">
-            {current.statement}
-          </h1>
-          <p className="app-lead mt-8">
-            Остановись на минуту, прочитай написанное и отложи лист.
-          </p>
-        </section>
+        <p className="app-eyebrow">{content.appName} · 2 / 3</p>
+        <h1 className="app-title mt-9">{content.intentions.paper_title}</h1>
+        <p className="app-lead mt-6">{content.intentions.paper_instruction}</p>
+        <blockquote className="surface-card my-10 whitespace-pre-line border-l-2 border-l-[var(--foreground)] p-5 text-xl leading-8">
+          {current.statement}
+        </blockquote>
+        <div className="mt-auto space-y-3">
+          <button
+            className="primary-action"
+            onClick={() => setScreen("technique")}
+          >
+            {content.intentions.paper_written_action}
+          </button>
+          <button className="quiet-action" onClick={() => setScreen("write")}>
+            {content.intentions.edit_action}
+          </button>
+        </div>
+      </main>
+    );
+  if (screen === "technique" && current)
+    return (
+      <main className="app-shell flex flex-col justify-center">
+        <p className="app-eyebrow">{content.appName} · 3 / 3</p>
+        <p className="mt-8 text-sm text-[var(--muted)]">
+          {content.intentions.technique_label}
+        </p>
+        <h1 className="app-title mt-4">Остановись на минуту</h1>
+        <p className="surface-card mt-8 p-5 text-lg leading-8 text-[var(--muted)]">
+          Прочитай написанное один раз. Заметь, что выбор уже сформулирован.
+          Затем отложи лист и возвращайся к обычным делам.
+        </p>
         <button
-          className="primary-action"
+          className="primary-action mt-12"
           onClick={() => {
             const now = new Date().toISOString();
             void persist(
@@ -274,7 +296,7 @@ export function StaticApp() {
             );
           }}
         >
-          Активировать
+          {content.activation.activate_action}
         </button>
       </main>
     );
