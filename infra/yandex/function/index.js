@@ -11,7 +11,13 @@ const {
   TypedValues,
 } = ydb;
 
-const allowedOrigin = process.env.APP_ORIGIN ?? "https://spnkd.github.io";
+const allowedOrigins = new Set(
+  (process.env.APP_ORIGINS ?? "https://spnkd.github.io")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+);
+let requestOrigin = "https://spnkd.github.io";
 const database = process.env.DATABASE;
 const endpoint = process.env.ENDPOINT;
 const recoveryHmacKey = process.env.RECOVERY_HMAC_KEY;
@@ -45,7 +51,7 @@ function response(statusCode, payload, extraHeaders = {}) {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
-      "Access-Control-Allow-Origin": allowedOrigin,
+      "Access-Control-Allow-Origin": requestOrigin,
       "Access-Control-Allow-Headers": "Authorization, Content-Type",
       "Access-Control-Allow-Methods": "GET, PUT, POST, OPTIONS",
       "Access-Control-Max-Age": "86400",
@@ -324,6 +330,12 @@ async function recover(event) {
 
 export async function handler(event) {
   try {
+    const headers = event.headers ?? {};
+    const origin = headers.origin ?? headers.Origin;
+    requestOrigin =
+      typeof origin === "string" && allowedOrigins.has(origin)
+        ? origin
+        : "https://spnkd.github.io";
     if (event.httpMethod === "OPTIONS") return response(204, {});
     const path = event.path ?? event.requestContext?.http?.path ?? "/";
     if (event.httpMethod === "GET" && path.endsWith("/health")) {
