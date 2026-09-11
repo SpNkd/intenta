@@ -22,7 +22,7 @@ jobs:
         env:
           NEXT_PUBLIC_YANDEX_API_URL: https://d5daqlniog6cb8q9t3hc.7qsg961h.apigw.yandexcloud.net
           NEXT_PUBLIC_BASE_PATH: /intenta
-      - uses: gitverse/upload-pages-artifact@v1.0.0
+      - uses: actions/upload-pages-artifact@v1
         with:
           path: apps/web/out
           retention-days: 1
@@ -31,4 +31,4 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: gitverse/deploy-pages@v1.0.0
+      - uses: actions/deploy-pages@v1
