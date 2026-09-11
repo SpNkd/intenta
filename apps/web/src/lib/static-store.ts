@@ -179,13 +179,17 @@ export function nextAmount(state: StaticState): number | undefined {
 export async function issueRecovery(state: StaticState): Promise<string> {
   await profile();
   const recovery = createRecoveryCode();
-  await attachRecoveryCode(recovery.publicId, recovery.secret);
   const recoveryKey = await deriveContentKey(
     recovery.secret,
     recovery.publicId,
   );
   const encrypted = await encryptValue(state, recoveryKey);
-  await putRemoteState(encrypted.ciphertext, encrypted.iv);
+  await attachRecoveryCode(
+    recovery.publicId,
+    recovery.secret,
+    encrypted.ciphertext,
+    encrypted.iv,
+  );
   await storeRecoveryContentKey(recoveryKey);
   resetProfileCache();
   return recovery.code;

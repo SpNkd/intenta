@@ -40,8 +40,10 @@ export async function ensureAnonymousSession(): Promise<void> {
 export async function attachRecoveryCode(
   publicId: string,
   secret: string,
+  encryptedState: string,
+  stateIv: string,
 ): Promise<void> {
-  await issueRemoteRecovery(publicId, secret);
+  await issueRemoteRecovery(publicId, secret, encryptedState, stateIv);
 }
 
 export async function recoverWithCode(

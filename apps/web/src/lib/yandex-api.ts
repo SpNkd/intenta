@@ -68,10 +68,17 @@ export async function putRemoteState(
 export async function issueRemoteRecovery(
   publicId: string,
   secret: string,
+  encryptedState: string,
+  stateIv: string,
 ): Promise<void> {
   await request("/recovery/issue", {
     method: "POST",
-    body: JSON.stringify({ public_id: publicId, secret }),
+    body: JSON.stringify({
+      public_id: publicId,
+      secret,
+      encrypted_state: encryptedState,
+      state_iv: stateIv,
+    }),
   });
 }
 

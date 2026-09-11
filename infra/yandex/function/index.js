@@ -265,8 +265,8 @@ async function getState(event) {
 }
 
 async function putState(event) {
-  const userId = await requireUser(event);
-  if (!userId) return response(401, { error: "session is required" });
+  const token = authorization(event);
+  if (!token) return response(401, { error: "session is required" });
   const body = readBody(event);
   if (!body || typeof body.encrypted_state !== "string" || typeof body.state_iv !== "string") {
     return badRequest("encrypted_state and state_iv are required");
@@ -274,20 +274,27 @@ async function putState(event) {
   if (body.encrypted_state.length > 200_000 || body.state_iv.length > 128) {
     return badRequest("state is too large");
   }
-  await query(
-    `DECLARE $user_id AS Utf8;
+  const result = await query(
+    `DECLARE $token_hash AS Utf8;
      DECLARE $encrypted_state AS Utf8;
      DECLARE $state_iv AS Utf8;
      DECLARE $now AS Timestamp;
-     UPSERT INTO profiles (user_id, encrypted_state, state_iv, created_at, updated_at)
-     VALUES ($user_id, $encrypted_state, $state_iv, $now, $now);`,
+     $authorized = SELECT user_id FROM sessions
+       WHERE token_hash = $token_hash AND expires_at > $now;
+     UPDATE profiles
+       SET encrypted_state = $encrypted_state, state_iv = $state_iv, updated_at = $now
+       WHERE user_id IN $authorized;
+     SELECT user_id FROM $authorized;`,
     {
-      $user_id: TypedValues.utf8(userId),
+      $token_hash: TypedValues.utf8(tokenHash(token)),
       $encrypted_state: TypedValues.utf8(body.encrypted_state),
       $state_iv: TypedValues.utf8(body.state_iv),
       $now: TypedValues.timestamp(new Date()),
     },
   );
+  if (!rows(result)[0]?.user_id) {
+    return response(401, { error: "session is required" });
+  }
   return response(200, { ok: true });
 }
 
@@ -299,6 +306,14 @@ async function issueRecovery(event) {
   const publicId = body?.public_id;
   const secret = body?.secret;
   if (!validPublicId(publicId) || !validSecret(secret)) return badRequest("invalid recovery credential");
+  if (
+    typeof body.encrypted_state !== "string" ||
+    typeof body.state_iv !== "string" ||
+    body.encrypted_state.length > 200_000 ||
+    body.state_iv.length > 128
+  ) {
+    return badRequest("encrypted_state and state_iv are required");
+  }
   const existing = rows(await query(
     `DECLARE $public_id AS Utf8;
      SELECT user_id FROM recovery_index WHERE public_id = $public_id;`,
@@ -314,12 +329,14 @@ async function issueRecovery(event) {
      DECLARE $public_id AS Utf8;
      DECLARE $user_id AS Utf8;
      DECLARE $secret_hash AS Utf8;
+     DECLARE $encrypted_state AS Utf8;
+     DECLARE $state_iv AS Utf8;
      DECLARE $now AS Timestamp;
      DELETE FROM recovery_index WHERE public_id = $old_public_id;
      UPSERT INTO recovery_index (public_id, user_id, recovery_secret_hash)
      VALUES ($public_id, $user_id, $secret_hash);
-     UPSERT INTO profiles (user_id, recovery_public_id, recovery_secret_hash, created_at, updated_at)
-     VALUES ($user_id, $public_id, $secret_hash, $now, $now);`,
+     UPSERT INTO profiles (user_id, recovery_public_id, recovery_secret_hash, encrypted_state, state_iv, created_at, updated_at)
+     VALUES ($user_id, $public_id, $secret_hash, $encrypted_state, $state_iv, $now, $now);`,
     {
       $old_public_id: current?.recovery_public_id
         ? TypedValues.optional(TypedValues.utf8(current.recovery_public_id))
@@ -327,6 +344,8 @@ async function issueRecovery(event) {
       $public_id: TypedValues.utf8(publicId),
       $user_id: TypedValues.utf8(userId),
       $secret_hash: TypedValues.utf8(secretHash),
+      $encrypted_state: TypedValues.utf8(body.encrypted_state),
+      $state_iv: TypedValues.utf8(body.state_iv),
       $now: TypedValues.timestamp(now),
     },
   );
