@@ -1,4 +1,12 @@
 import { supabase } from "./supabase";
+import {
+  ApiError,
+  bootstrapApiSession,
+  claimLegacyApiSession,
+  getRemoteProfile,
+  issueRemoteRecovery,
+  recoverRemote,
+} from "./yandex-api";
 
 const recoveryAlphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
@@ -20,17 +28,22 @@ export function createRecoveryCode(): {
   return { code: `INTENTA-${publicId}-${secret}`, publicId, secret };
 }
 
-export async function ensureAnonymousSession() {
-  const { data: existing } = await supabase.auth.getSession();
-  if (existing.session) return existing.session;
+export async function ensureAnonymousSession(): Promise<void> {
+  try {
+    await getRemoteProfile();
+    return;
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 401) throw error;
+  }
 
-  const { data, error } = await supabase.auth.signInAnonymously();
-  if (error || !data.session)
-    throw error ?? new Error("Anonymous sign-in did not return a session");
-  await supabase
-    .from("profiles")
-    .upsert({ id: data.session.user.id }, { onConflict: "id" });
-  return data.session;
+  // This bridge is temporary: it proves the existing Supabase access token
+  // server-side, then reuses the already imported opaque profile in YDB.
+  const { data: existing } = await supabase.auth.getSession();
+  if (existing.session) {
+    await claimLegacyApiSession(existing.session.user.id, existing.session.access_token);
+    return;
+  }
+  await bootstrapApiSession();
 }
 
 /**
@@ -41,37 +54,27 @@ export async function attachRecoveryCode(
   publicId: string,
   secret: string,
 ): Promise<void> {
-  const email = `${publicId.toLowerCase()}@recovery.intenta.invalid`;
-  const { error: authError } = await supabase.auth.updateUser({
-    email,
-    password: secret,
-  });
-  if (authError) throw authError;
-
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user)
-    throw userError ?? new Error("Missing current user");
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .update({
-      recovery_public_id: publicId,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", userData.user.id);
-  if (profileError) throw profileError;
+  await issueRemoteRecovery(publicId, secret);
 }
 
 export async function recoverWithCode(
   publicId: string,
   secret: string,
 ): Promise<void> {
-  const email = `${publicId.toLowerCase()}@recovery.intenta.invalid`;
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password: secret,
-  });
-  if (error)
-    throw new Error(
-      "Не удалось восстановить доступ. Проверь код и попробуй ещё раз.",
-    );
+  try {
+    await recoverRemote(publicId, secret);
+  } catch (error) {
+    // Existing codes are still verified by Supabase during the transition.
+    // Once confirmed, ensureAnonymousSession claims the matching opaque YDB row.
+    if (!(error instanceof ApiError) || error.status !== 401) throw error;
+    const email = `${publicId.toLowerCase()}@recovery.intenta.invalid`;
+    const { error: legacyError } = await supabase.auth.signInWithPassword({
+      email,
+      password: secret,
+    });
+    if (legacyError) {
+      throw new Error("Не удалось восстановить доступ. Проверь код и попробуй ещё раз.");
+    }
+    await ensureAnonymousSession();
+  }
 }

@@ -1,0 +1,407 @@
+import crypto from "node:crypto";
+import ydb from "ydb-sdk";
+
+const {
+  Driver,
+  MetadataAuthService,
+  Column,
+  TableDescription,
+  Types,
+  TypedData,
+  TypedValues,
+} = ydb;
+
+const allowedOrigin = process.env.APP_ORIGIN ?? "https://spnkd.github.io";
+const database = process.env.DATABASE;
+const endpoint = process.env.ENDPOINT;
+const recoveryHmacKey = process.env.RECOVERY_HMAC_KEY;
+const legacySupabaseUrl = process.env.LEGACY_SUPABASE_URL;
+const legacySupabaseKey = process.env.LEGACY_SUPABASE_ANON_KEY;
+
+let driverPromise;
+let schemaPromise;
+
+function table(columns, primaryKey) {
+  return new TableDescription(
+    columns.map(([name, type]) => new Column(name, type)),
+    primaryKey,
+  );
+}
+
+async function createIfMissing(session, name, description) {
+  try {
+    await session.describeTable(name);
+  } catch {
+    try {
+      await session.createTable(name, description);
+    } catch (error) {
+      // A concurrent cold start may have created this table after describe.
+      if (!String(error).includes("ALREADY_EXISTS")) throw error;
+    }
+  }
+}
+
+function response(statusCode, payload, extraHeaders = {}) {
+  return {
+    statusCode,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Access-Control-Allow-Origin": allowedOrigin,
+      "Access-Control-Allow-Headers": "Authorization, Content-Type",
+      "Access-Control-Allow-Methods": "GET, PUT, POST, OPTIONS",
+      Vary: "Origin",
+      ...extraHeaders,
+    },
+    body: JSON.stringify(payload),
+    isBase64Encoded: false,
+  };
+}
+
+function badRequest(message) {
+  return response(400, { error: message });
+}
+
+function readBody(event) {
+  if (!event.body) return {};
+  try {
+    return JSON.parse(event.isBase64Encoded
+      ? Buffer.from(event.body, "base64").toString("utf8")
+      : event.body);
+  } catch {
+    return null;
+  }
+}
+
+function randomToken() {
+  return crypto.randomBytes(32).toString("base64url");
+}
+
+function tokenHash(token) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function recoveryHash(publicId, secret) {
+  if (!recoveryHmacKey) throw new Error("RECOVERY_HMAC_KEY is not configured");
+  return crypto
+    .createHmac("sha256", recoveryHmacKey)
+    .update(`${publicId}:${secret}`)
+    .digest("hex");
+}
+
+function validPublicId(value) {
+  return typeof value === "string" && /^[0-9A-HJKMNP-TV-Z]{8}$/.test(value);
+}
+
+function validSecret(value) {
+  return typeof value === "string" && /^[0-9A-HJKMNP-TV-Z]{20}$/.test(value);
+}
+
+function authorization(event) {
+  const headers = event.headers ?? {};
+  const value = headers.authorization ?? headers.Authorization;
+  return typeof value === "string" && value.startsWith("Bearer ")
+    ? value.slice("Bearer ".length)
+    : undefined;
+}
+
+async function getDriver() {
+  if (!endpoint || !database) throw new Error("YDB endpoint/database are not configured");
+  if (!driverPromise) {
+    driverPromise = (async () => {
+      const driver = new Driver({
+        endpoint,
+        database,
+        authService: new MetadataAuthService(),
+      });
+      if (!(await driver.ready(10_000))) {
+        throw new Error("YDB driver did not become ready");
+      }
+      return driver;
+    })();
+  }
+  return driverPromise;
+}
+
+async function ensureSchema() {
+  if (!schemaPromise) {
+    schemaPromise = (async () => {
+      const driver = await getDriver();
+      await driver.tableClient.withSession(async (session) => {
+        await createIfMissing(session, "profiles", table([
+          ["user_id", Types.UTF8],
+          ["recovery_public_id", Types.optional(Types.UTF8)],
+          ["recovery_secret_hash", Types.optional(Types.UTF8)],
+          ["encrypted_state", Types.optional(Types.UTF8)],
+          ["state_iv", Types.optional(Types.UTF8)],
+          ["created_at", Types.TIMESTAMP],
+          ["updated_at", Types.TIMESTAMP],
+        ], ["user_id"]));
+        await createIfMissing(session, "recovery_index", table([
+          ["public_id", Types.UTF8],
+          ["user_id", Types.UTF8],
+          ["recovery_secret_hash", Types.UTF8],
+        ], ["public_id"]));
+        await createIfMissing(session, "sessions", table([
+          ["token_hash", Types.UTF8],
+          ["user_id", Types.UTF8],
+          ["expires_at", Types.TIMESTAMP],
+        ], ["token_hash"]));
+      });
+    })();
+  }
+  return schemaPromise;
+}
+
+async function query(text, parameters = {}) {
+  await ensureSchema();
+  const driver = await getDriver();
+  return driver.tableClient.withSession((session) => session.executeQuery(text, parameters));
+}
+
+function rows(result) {
+  return result.resultSets?.[0]
+    ? TypedData.createNativeObjects(result.resultSets[0])
+    : [];
+}
+
+async function userForToken(token) {
+  if (!token) return undefined;
+  const now = new Date();
+  const result = await query(
+    `DECLARE $token_hash AS Utf8;
+     DECLARE $now AS Timestamp;
+     SELECT user_id FROM sessions
+     WHERE token_hash = $token_hash AND expires_at > $now;`,
+    { $token_hash: TypedValues.utf8(tokenHash(token)), $now: TypedValues.timestamp(now) },
+  );
+  return rows(result)[0]?.user_id;
+}
+
+async function createSession(userId) {
+  const token = randomToken();
+  const expires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365);
+  await query(
+    `DECLARE $token_hash AS Utf8;
+     DECLARE $user_id AS Utf8;
+     DECLARE $expires_at AS Timestamp;
+     UPSERT INTO sessions (token_hash, user_id, expires_at)
+     VALUES ($token_hash, $user_id, $expires_at);`,
+    {
+      $token_hash: TypedValues.utf8(tokenHash(token)),
+      $user_id: TypedValues.utf8(userId),
+      $expires_at: TypedValues.timestamp(expires),
+    },
+  );
+  return token;
+}
+
+async function currentProfile(userId) {
+  const result = await query(
+    `DECLARE $user_id AS Utf8;
+     SELECT user_id, recovery_public_id, encrypted_state, state_iv
+     FROM profiles WHERE user_id = $user_id;`,
+    { $user_id: TypedValues.utf8(userId) },
+  );
+  return rows(result)[0];
+}
+
+async function requireUser(event) {
+  const userId = await userForToken(authorization(event));
+  if (!userId) return undefined;
+  return userId;
+}
+
+async function bootstrap() {
+  const userId = crypto.randomUUID();
+  const now = new Date();
+  await query(
+    `DECLARE $user_id AS Utf8;
+     DECLARE $now AS Timestamp;
+     UPSERT INTO profiles (user_id, created_at, updated_at)
+     VALUES ($user_id, $now, $now);`,
+    { $user_id: TypedValues.utf8(userId), $now: TypedValues.timestamp(now) },
+  );
+  return response(201, { token: await createSession(userId), profile: {} });
+}
+
+async function claimLegacyProfile(event) {
+  const body = readBody(event);
+  const legacyUserId = body?.legacy_user_id;
+  const accessToken = body?.access_token;
+  if (typeof legacyUserId !== "string" || typeof accessToken !== "string" ||
+      !legacySupabaseUrl || !legacySupabaseKey) {
+    return response(401, { error: "legacy session is required" });
+  }
+  const verification = await fetch(`${legacySupabaseUrl}/auth/v1/user`, {
+    headers: {
+      apikey: legacySupabaseKey,
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!verification.ok) return response(401, { error: "legacy session is required" });
+  const legacyUser = await verification.json();
+  if (legacyUser?.id !== legacyUserId) return response(401, { error: "legacy session is required" });
+
+  if (!(await currentProfile(legacyUserId))) {
+    const now = new Date();
+    await query(
+      `DECLARE $user_id AS Utf8;
+       DECLARE $now AS Timestamp;
+       UPSERT INTO profiles (user_id, created_at, updated_at)
+       VALUES ($user_id, $now, $now);`,
+      { $user_id: TypedValues.utf8(legacyUserId), $now: TypedValues.timestamp(now) },
+    );
+  }
+  return response(200, {
+    token: await createSession(legacyUserId),
+    profile: (await currentProfile(legacyUserId)) ?? {},
+  });
+}
+
+async function getState(event) {
+  const userId = await requireUser(event);
+  if (!userId) return response(401, { error: "session is required" });
+  const profile = await currentProfile(userId);
+  return response(200, { profile: profile ?? {} });
+}
+
+async function putState(event) {
+  const userId = await requireUser(event);
+  if (!userId) return response(401, { error: "session is required" });
+  const body = readBody(event);
+  if (!body || typeof body.encrypted_state !== "string" || typeof body.state_iv !== "string") {
+    return badRequest("encrypted_state and state_iv are required");
+  }
+  if (body.encrypted_state.length > 200_000 || body.state_iv.length > 128) {
+    return badRequest("state is too large");
+  }
+  await query(
+    `DECLARE $user_id AS Utf8;
+     DECLARE $encrypted_state AS Utf8;
+     DECLARE $state_iv AS Utf8;
+     DECLARE $now AS Timestamp;
+     UPSERT INTO profiles (user_id, encrypted_state, state_iv, created_at, updated_at)
+     VALUES ($user_id, $encrypted_state, $state_iv, $now, $now);`,
+    {
+      $user_id: TypedValues.utf8(userId),
+      $encrypted_state: TypedValues.utf8(body.encrypted_state),
+      $state_iv: TypedValues.utf8(body.state_iv),
+      $now: TypedValues.timestamp(new Date()),
+    },
+  );
+  return response(200, { ok: true });
+}
+
+async function issueRecovery(event) {
+  const userId = await requireUser(event);
+  if (!userId) return response(401, { error: "session is required" });
+  const body = readBody(event);
+  const publicId = body?.public_id;
+  const secret = body?.secret;
+  if (!validPublicId(publicId) || !validSecret(secret)) return badRequest("invalid recovery credential");
+  const current = await currentProfile(userId);
+  const existing = rows(await query(
+    `DECLARE $public_id AS Utf8;
+     SELECT user_id FROM recovery_index WHERE public_id = $public_id;`,
+    { $public_id: TypedValues.utf8(publicId) },
+  ))[0];
+  if (existing && existing.user_id !== userId) {
+    return response(409, { error: "recovery credential already exists" });
+  }
+  const secretHash = recoveryHash(publicId, secret);
+  const now = new Date();
+  await query(
+    `DECLARE $old_public_id AS Utf8?;
+     DECLARE $public_id AS Utf8;
+     DECLARE $user_id AS Utf8;
+     DECLARE $secret_hash AS Utf8;
+     DECLARE $now AS Timestamp;
+     DELETE FROM recovery_index WHERE public_id = $old_public_id;
+     UPSERT INTO recovery_index (public_id, user_id, recovery_secret_hash)
+     VALUES ($public_id, $user_id, $secret_hash);
+     UPSERT INTO profiles (user_id, recovery_public_id, recovery_secret_hash, created_at, updated_at)
+     VALUES ($user_id, $public_id, $secret_hash, $now, $now);`,
+    {
+      $old_public_id: current?.recovery_public_id
+        ? TypedValues.optional(TypedValues.utf8(current.recovery_public_id))
+        : TypedValues.optionalNull(Types.UTF8),
+      $public_id: TypedValues.utf8(publicId),
+      $user_id: TypedValues.utf8(userId),
+      $secret_hash: TypedValues.utf8(secretHash),
+      $now: TypedValues.timestamp(now),
+    },
+  );
+  return response(200, { ok: true });
+}
+
+async function recover(event) {
+  const body = readBody(event);
+  const publicId = body?.public_id;
+  const secret = body?.secret;
+  if (!validPublicId(publicId) || !validSecret(secret)) {
+    return response(401, { error: "invalid recovery credential" });
+  }
+  const result = await query(
+    `DECLARE $public_id AS Utf8;
+     SELECT user_id, recovery_secret_hash FROM recovery_index WHERE public_id = $public_id;`,
+    { $public_id: TypedValues.utf8(publicId) },
+  );
+  const entry = rows(result)[0];
+  if (!entry && legacySupabaseUrl && legacySupabaseKey) {
+    const legacy = await fetch(`${legacySupabaseUrl}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: {
+        apikey: legacySupabaseKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: `${publicId.toLowerCase()}@recovery.intenta.invalid`,
+        password: secret,
+      }),
+    });
+    if (legacy.ok) {
+      const legacySession = await legacy.json();
+      const legacyUserId = legacySession?.user?.id;
+      if (typeof legacyUserId === "string") {
+        const profile = await currentProfile(legacyUserId);
+        if (profile) {
+          return response(200, {
+            token: await createSession(legacyUserId),
+            profile,
+          });
+        }
+      }
+    }
+  }
+  const supplied = Buffer.from(recoveryHash(publicId, secret), "hex");
+  const expected = Buffer.from(entry?.recovery_secret_hash ?? crypto.randomBytes(32).toString("hex"), "hex");
+  if (!entry || supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) {
+    return response(401, { error: "invalid recovery credential" });
+  }
+  const profile = await currentProfile(entry.user_id);
+  return response(200, { token: await createSession(entry.user_id), profile: profile ?? {} });
+}
+
+export async function handler(event) {
+  try {
+    if (event.httpMethod === "OPTIONS") return response(204, {});
+    const path = event.path ?? event.requestContext?.http?.path ?? "/";
+    if (event.httpMethod === "GET" && path.endsWith("/health")) {
+      await ensureSchema();
+      return response(200, { ok: true });
+    }
+    if (event.httpMethod === "POST" && path.endsWith("/migration/claim")) {
+      return claimLegacyProfile(event);
+    }
+    if (event.httpMethod === "POST" && path.endsWith("/bootstrap")) return bootstrap();
+    if (event.httpMethod === "GET" && path.endsWith("/state")) return getState(event);
+    if (event.httpMethod === "PUT" && path.endsWith("/state")) return putState(event);
+    if (event.httpMethod === "POST" && path.endsWith("/recovery/issue")) return issueRecovery(event);
+    if (event.httpMethod === "POST" && path.endsWith("/recovery/login")) return recover(event);
+    return response(404, { error: "not found" });
+  } catch (error) {
+    console.error("intenta api request failed", error instanceof Error ? error.message : "unknown error");
+    return response(500, { error: "temporary server error" });
+  }
+}

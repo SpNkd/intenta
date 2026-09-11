@@ -1,0 +1,65 @@
+openapi: 3.0.0
+info:
+  title: Intenta encrypted state API
+  version: 1.0.0
+paths:
+  /health:
+    get: &function
+      operationId: health
+      responses:
+        "200":
+          description: Proxied response
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: d4eikpvvmsp9930ag7ld
+        tag: $latest
+        service_account_id: aje49s8079a2prgdmbie
+  /bootstrap:
+    post: &proxy
+      operationId: bootstrap
+      responses: { "200": { description: Proxied response } }
+      x-yc-apigateway-integration: { type: cloud_functions, function_id: d4eikpvvmsp9930ag7ld, tag: $latest, service_account_id: aje49s8079a2prgdmbie }
+    options: &options
+      operationId: bootstrapOptions
+      responses: { "200": { description: Proxied response } }
+      x-yc-apigateway-integration: { type: cloud_functions, function_id: d4eikpvvmsp9930ag7ld, tag: $latest, service_account_id: aje49s8079a2prgdmbie }
+  /migration/claim:
+    post:
+      operationId: claimLegacyProfile
+      responses: { "200": { description: Proxied response } }
+      x-yc-apigateway-integration: { type: cloud_functions, function_id: d4eikpvvmsp9930ag7ld, tag: $latest, service_account_id: aje49s8079a2prgdmbie }
+    options:
+      operationId: claimLegacyProfileOptions
+      responses: { "200": { description: Proxied response } }
+      x-yc-apigateway-integration: { type: cloud_functions, function_id: d4eikpvvmsp9930ag7ld, tag: $latest, service_account_id: aje49s8079a2prgdmbie }
+  /state:
+    get:
+      operationId: getState
+      responses: { "200": { description: Proxied response } }
+      x-yc-apigateway-integration: { type: cloud_functions, function_id: d4eikpvvmsp9930ag7ld, tag: $latest, service_account_id: aje49s8079a2prgdmbie }
+    put:
+      operationId: putState
+      responses: { "200": { description: Proxied response } }
+      x-yc-apigateway-integration: { type: cloud_functions, function_id: d4eikpvvmsp9930ag7ld, tag: $latest, service_account_id: aje49s8079a2prgdmbie }
+    options:
+      operationId: stateOptions
+      responses: { "200": { description: Proxied response } }
+      x-yc-apigateway-integration: { type: cloud_functions, function_id: d4eikpvvmsp9930ag7ld, tag: $latest, service_account_id: aje49s8079a2prgdmbie }
+  /recovery/issue:
+    post:
+      operationId: issueRecovery
+      responses: { "200": { description: Proxied response } }
+      x-yc-apigateway-integration: { type: cloud_functions, function_id: d4eikpvvmsp9930ag7ld, tag: $latest, service_account_id: aje49s8079a2prgdmbie }
+    options:
+      operationId: issueRecoveryOptions
+      responses: { "200": { description: Proxied response } }
+      x-yc-apigateway-integration: { type: cloud_functions, function_id: d4eikpvvmsp9930ag7ld, tag: $latest, service_account_id: aje49s8079a2prgdmbie }
+  /recovery/login:
+    post:
+      operationId: loginRecovery
+      responses: { "200": { description: Proxied response } }
+      x-yc-apigateway-integration: { type: cloud_functions, function_id: d4eikpvvmsp9930ag7ld, tag: $latest, service_account_id: aje49s8079a2prgdmbie }
+    options:
+      operationId: loginRecoveryOptions
+      responses: { "200": { description: Proxied response } }
+      x-yc-apigateway-integration: { type: cloud_functions, function_id: d4eaoh85jeppt8j5odtj, tag: $latest, service_account_id: aje49s8079a2prgdmbie }

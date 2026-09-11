@@ -10,7 +10,7 @@ import {
   ensureAnonymousSession,
   recoverWithCode,
 } from "./static-auth";
-import { supabase } from "./supabase";
+import { getRemoteProfile, putRemoteState } from "./yandex-api";
 
 export type StaticOutcome = {
   resolution: "happened" | "not_happened" | "uncertain";
@@ -107,21 +107,14 @@ export function normalizeState(state: StaticState): StaticState {
 }
 
 type Profile = {
-  id: string;
   recovery_public_id: string | null;
   encrypted_state: string | null;
   state_iv: string | null;
 };
 
 async function profile(): Promise<Profile> {
-  const session = await ensureAnonymousSession();
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id,recovery_public_id,encrypted_state,state_iv")
-    .eq("id", session.user.id)
-    .single();
-  if (error || !data) throw error ?? new Error("Profile is unavailable");
-  return data as Profile;
+  await ensureAnonymousSession();
+  return (await getRemoteProfile()) as Profile;
 }
 
 export async function hasRecoveryCredential(): Promise<boolean> {
@@ -157,15 +150,7 @@ export async function loadState(): Promise<StaticState> {
 export async function saveState(state: StaticState): Promise<void> {
   const profileData = await profile();
   const encrypted = await encryptValue(state, await keyFor(profileData));
-  const { error } = await supabase
-    .from("profiles")
-    .update({
-      encrypted_state: encrypted.ciphertext,
-      state_iv: encrypted.iv,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", profileData.id);
-  if (error) throw error;
+  await putRemoteState(encrypted.ciphertext, encrypted.iv);
 }
 
 export function nextAmount(state: StaticState): number | undefined {
@@ -178,7 +163,7 @@ export function nextAmount(state: StaticState): number | undefined {
 }
 
 export async function issueRecovery(state: StaticState): Promise<string> {
-  const profileData = await profile();
+  await profile();
   const recovery = createRecoveryCode();
   await attachRecoveryCode(recovery.publicId, recovery.secret);
   const recoveryKey = await deriveContentKey(
@@ -186,15 +171,7 @@ export async function issueRecovery(state: StaticState): Promise<string> {
     recovery.publicId,
   );
   const encrypted = await encryptValue(state, recoveryKey);
-  const { error } = await supabase
-    .from("profiles")
-    .update({
-      recovery_public_id: recovery.publicId,
-      encrypted_state: encrypted.ciphertext,
-      state_iv: encrypted.iv,
-    })
-    .eq("id", profileData.id);
-  if (error) throw error;
+  await putRemoteState(encrypted.ciphertext, encrypted.iv);
   await storeRecoveryContentKey(recoveryKey);
   return recovery.code;
 }

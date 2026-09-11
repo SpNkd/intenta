@@ -1,0 +1,12 @@
+{
+  "name": "intenta-yandex-api",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@yandex-cloud/nodejs-sdk": "2.7.7",
+    "ydb-sdk": "5.11.1"
+  }
+}

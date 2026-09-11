@@ -2,6 +2,7 @@ const databaseName = "intenta-vault";
 const storeName = "keys";
 const deviceKeyName = "device-content-key";
 const recoveryKeyName = "recovery-content-key";
+const apiSessionName = "yandex-api-session";
 
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -49,6 +50,36 @@ export async function storeRecoveryContentKey(key: CryptoKey): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction(storeName, "readwrite");
     transaction.objectStore(storeName).put(key, recoveryKeyName);
+    transaction.onerror = () => reject(transaction.error);
+    transaction.oncomplete = () => resolve();
+  });
+}
+
+export async function getStoredApiSession(): Promise<string | undefined> {
+  const database = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(storeName, "readonly");
+    const request = transaction.objectStore(storeName).get(apiSessionName);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result as string | undefined);
+  });
+}
+
+export async function storeApiSession(token: string): Promise<void> {
+  const database = await openDatabase();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(storeName, "readwrite");
+    transaction.objectStore(storeName).put(token, apiSessionName);
+    transaction.onerror = () => reject(transaction.error);
+    transaction.oncomplete = () => resolve();
+  });
+}
+
+export async function clearApiSession(): Promise<void> {
+  const database = await openDatabase();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(storeName, "readwrite");
+    transaction.objectStore(storeName).delete(apiSessionName);
     transaction.onerror = () => reject(transaction.error);
     transaction.oncomplete = () => resolve();
   });
