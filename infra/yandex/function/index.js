@@ -15,8 +15,6 @@ const allowedOrigin = process.env.APP_ORIGIN ?? "https://spnkd.github.io";
 const database = process.env.DATABASE;
 const endpoint = process.env.ENDPOINT;
 const recoveryHmacKey = process.env.RECOVERY_HMAC_KEY;
-const legacySupabaseUrl = process.env.LEGACY_SUPABASE_URL;
-const legacySupabaseKey = process.env.LEGACY_SUPABASE_ANON_KEY;
 
 let driverPromise;
 let schemaPromise;
@@ -50,6 +48,7 @@ function response(statusCode, payload, extraHeaders = {}) {
       "Access-Control-Allow-Origin": allowedOrigin,
       "Access-Control-Allow-Headers": "Authorization, Content-Type",
       "Access-Control-Allow-Methods": "GET, PUT, POST, OPTIONS",
+      "Access-Control-Max-Age": "86400",
       Vary: "Origin",
       ...extraHeaders,
     },
@@ -225,40 +224,6 @@ async function bootstrap() {
   return response(201, { token: await createSession(userId), profile: {} });
 }
 
-async function claimLegacyProfile(event) {
-  const body = readBody(event);
-  const legacyUserId = body?.legacy_user_id;
-  const accessToken = body?.access_token;
-  if (typeof legacyUserId !== "string" || typeof accessToken !== "string" ||
-      !legacySupabaseUrl || !legacySupabaseKey) {
-    return response(401, { error: "legacy session is required" });
-  }
-  const verification = await fetch(`${legacySupabaseUrl}/auth/v1/user`, {
-    headers: {
-      apikey: legacySupabaseKey,
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-  if (!verification.ok) return response(401, { error: "legacy session is required" });
-  const legacyUser = await verification.json();
-  if (legacyUser?.id !== legacyUserId) return response(401, { error: "legacy session is required" });
-
-  if (!(await currentProfile(legacyUserId))) {
-    const now = new Date();
-    await query(
-      `DECLARE $user_id AS Utf8;
-       DECLARE $now AS Timestamp;
-       UPSERT INTO profiles (user_id, created_at, updated_at)
-       VALUES ($user_id, $now, $now);`,
-      { $user_id: TypedValues.utf8(legacyUserId), $now: TypedValues.timestamp(now) },
-    );
-  }
-  return response(200, {
-    token: await createSession(legacyUserId),
-    profile: (await currentProfile(legacyUserId)) ?? {},
-  });
-}
-
 async function getState(event) {
   const userId = await requireUser(event);
   if (!userId) return response(401, { error: "session is required" });
@@ -348,32 +313,6 @@ async function recover(event) {
     { $public_id: TypedValues.utf8(publicId) },
   );
   const entry = rows(result)[0];
-  if (!entry && legacySupabaseUrl && legacySupabaseKey) {
-    const legacy = await fetch(`${legacySupabaseUrl}/auth/v1/token?grant_type=password`, {
-      method: "POST",
-      headers: {
-        apikey: legacySupabaseKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email: `${publicId.toLowerCase()}@recovery.intenta.invalid`,
-        password: secret,
-      }),
-    });
-    if (legacy.ok) {
-      const legacySession = await legacy.json();
-      const legacyUserId = legacySession?.user?.id;
-      if (typeof legacyUserId === "string") {
-        const profile = await currentProfile(legacyUserId);
-        if (profile) {
-          return response(200, {
-            token: await createSession(legacyUserId),
-            profile,
-          });
-        }
-      }
-    }
-  }
   const supplied = Buffer.from(recoveryHash(publicId, secret), "hex");
   const expected = Buffer.from(entry?.recovery_secret_hash ?? crypto.randomBytes(32).toString("hex"), "hex");
   if (!entry || supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) {
@@ -390,9 +329,6 @@ export async function handler(event) {
     if (event.httpMethod === "GET" && path.endsWith("/health")) {
       await ensureSchema();
       return response(200, { ok: true });
-    }
-    if (event.httpMethod === "POST" && path.endsWith("/migration/claim")) {
-      return claimLegacyProfile(event);
     }
     if (event.httpMethod === "POST" && path.endsWith("/bootstrap")) return bootstrap();
     if (event.httpMethod === "GET" && path.endsWith("/state")) return getState(event);

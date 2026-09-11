@@ -1,9 +1,6 @@
-import { supabase } from "./supabase";
 import { getStoredApiSession } from "./key-vault";
 import {
-  ApiError,
   bootstrapApiSession,
-  claimLegacyApiSession,
   issueRemoteRecovery,
   recoverRemote,
 } from "./yandex-api";
@@ -32,16 +29,7 @@ export function createRecoveryCode(): {
 export async function ensureAnonymousSession(): Promise<void> {
   if (await getStoredApiSession()) return;
   if (!creatingSession) {
-    creatingSession = (async () => {
-      // This bridge is temporary: it proves the existing Supabase access token
-      // server-side, then reuses the already imported opaque profile in YDB.
-      const { data: existing } = await supabase.auth.getSession();
-      if (existing.session) {
-        await claimLegacyApiSession(existing.session.user.id, existing.session.access_token);
-      } else {
-        await bootstrapApiSession();
-      }
-    })().catch((error) => {
+    creatingSession = bootstrapApiSession().then(() => undefined).catch((error) => {
       creatingSession = undefined;
       throw error;
     });
@@ -49,10 +37,6 @@ export async function ensureAnonymousSession(): Promise<void> {
   await creatingSession;
 }
 
-/**
- * Converts the current anonymous identity into an invisible password identity.
- * Supabase retains only its password hash; this function never persists secret.
- */
 export async function attachRecoveryCode(
   publicId: string,
   secret: string,
@@ -64,20 +48,5 @@ export async function recoverWithCode(
   publicId: string,
   secret: string,
 ): Promise<void> {
-  try {
-    await recoverRemote(publicId, secret);
-  } catch (error) {
-    // Existing codes are still verified by Supabase during the transition.
-    // Once confirmed, ensureAnonymousSession claims the matching opaque YDB row.
-    if (!(error instanceof ApiError) || error.status !== 401) throw error;
-    const email = `${publicId.toLowerCase()}@recovery.intenta.invalid`;
-    const { error: legacyError } = await supabase.auth.signInWithPassword({
-      email,
-      password: secret,
-    });
-    if (legacyError) {
-      throw new Error("Не удалось восстановить доступ. Проверь код и попробуй ещё раз.");
-    }
-    await ensureAnonymousSession();
-  }
+  await recoverRemote(publicId, secret);
 }

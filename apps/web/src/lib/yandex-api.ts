@@ -51,19 +51,6 @@ export async function bootstrapApiSession(): Promise<RemoteProfile> {
   return acceptSession(await request<SessionResponse>("/bootstrap", { method: "POST", body: "{}" }, false));
 }
 
-export async function claimLegacyApiSession(
-  legacyUserId: string,
-  accessToken: string,
-): Promise<RemoteProfile> {
-  return acceptSession(
-    await request<SessionResponse>(
-      "/migration/claim",
-      { method: "POST", body: JSON.stringify({ legacy_user_id: legacyUserId, access_token: accessToken }) },
-      false,
-    ),
-  );
-}
-
 export async function getRemoteProfile(): Promise<RemoteProfile> {
   return (await request<{ profile: RemoteProfile }>("/state")).profile;
 }
