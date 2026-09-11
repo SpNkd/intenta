@@ -4,6 +4,7 @@ import ydb from "ydb-sdk";
 const {
   Driver,
   MetadataAuthService,
+  AlterTableDescription,
   Column,
   TableDescription,
   Types,
@@ -45,6 +46,16 @@ async function createIfMissing(session, name, description) {
       if (!String(error).includes("ALREADY_EXISTS")) throw error;
     }
   }
+}
+
+async function ensureSessionTtl(session) {
+  const description = await session.describeTable("sessions");
+  const ttl = description.ttlSettings?.dateTypeColumn;
+  if (ttl?.columnName === "expires_at" && ttl.expireAfterSeconds === 0) return;
+  await session.alterTable(
+    "sessions",
+    new AlterTableDescription().withSetTtl("expires_at", 0),
+  );
 }
 
 function response(statusCode, payload, extraHeaders = {}) {
@@ -153,7 +164,8 @@ async function ensureSchema() {
           ["token_hash", Types.UTF8],
           ["user_id", Types.UTF8],
           ["expires_at", Types.TIMESTAMP],
-        ], ["token_hash"]));
+        ], ["token_hash"]).withTtl("expires_at"));
+        await ensureSessionTtl(session);
       });
     })();
   }
