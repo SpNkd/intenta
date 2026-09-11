@@ -13,7 +13,9 @@ const {
 
 const allowedOrigins = new Set(
   (process.env.APP_ORIGINS ?? "https://spnkd.github.io")
-    .split(",")
+    // A semicolon is accepted too so a multi-origin value is safe to pass
+    // through cloud CLIs whose key=value flag uses commas as a separator.
+    .split(/[;,]/)
     .map((origin) => origin.trim())
     .filter(Boolean),
 );
@@ -211,6 +213,32 @@ async function currentProfile(userId) {
   return rows(result)[0];
 }
 
+/**
+ * The usual authenticated read needs both the session owner and their profile.
+ * Fetching them together saves one YDB round-trip versus first looking up the
+ * session and then issuing a second profile query.
+ */
+async function authenticatedProfile(event) {
+  const token = authorization(event);
+  if (!token) return undefined;
+  const result = await query(
+    `DECLARE $token_hash AS Utf8;
+     DECLARE $now AS Timestamp;
+     SELECT s.user_id AS user_id,
+            p.recovery_public_id AS recovery_public_id,
+            p.encrypted_state AS encrypted_state,
+            p.state_iv AS state_iv
+     FROM sessions AS s
+     LEFT JOIN profiles AS p ON p.user_id = s.user_id
+     WHERE s.token_hash = $token_hash AND s.expires_at > $now;`,
+    {
+      $token_hash: TypedValues.utf8(tokenHash(token)),
+      $now: TypedValues.timestamp(new Date()),
+    },
+  );
+  return rows(result)[0];
+}
+
 async function requireUser(event) {
   const userId = await userForToken(authorization(event));
   if (!userId) return undefined;
@@ -231,9 +259,8 @@ async function bootstrap() {
 }
 
 async function getState(event) {
-  const userId = await requireUser(event);
-  if (!userId) return response(401, { error: "session is required" });
-  const profile = await currentProfile(userId);
+  const profile = await authenticatedProfile(event);
+  if (!profile) return response(401, { error: "session is required" });
   return response(200, { profile: profile ?? {} });
 }
 
@@ -265,13 +292,13 @@ async function putState(event) {
 }
 
 async function issueRecovery(event) {
-  const userId = await requireUser(event);
-  if (!userId) return response(401, { error: "session is required" });
+  const current = await authenticatedProfile(event);
+  if (!current) return response(401, { error: "session is required" });
+  const userId = current.user_id;
   const body = readBody(event);
   const publicId = body?.public_id;
   const secret = body?.secret;
   if (!validPublicId(publicId) || !validSecret(secret)) return badRequest("invalid recovery credential");
-  const current = await currentProfile(userId);
   const existing = rows(await query(
     `DECLARE $public_id AS Utf8;
      SELECT user_id FROM recovery_index WHERE public_id = $public_id;`,

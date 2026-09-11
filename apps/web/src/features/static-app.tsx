@@ -801,10 +801,10 @@ export function StaticApp() {
           <button
             type="button"
             onClick={() => {
-              const next = { ...state, selectedIntentionId: item.id };
-              setState(next);
-              void saveState(next);
-              setScreen("detail");
+              void persist(
+                { ...state, selectedIntentionId: item.id },
+                "detail",
+              );
             }}
             className="surface-card block w-full p-5 text-left hover:border-[var(--foreground)]"
             key={item.id}
