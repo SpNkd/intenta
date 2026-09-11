@@ -1,14 +1,15 @@
 import { supabase } from "./supabase";
+import { getStoredApiSession } from "./key-vault";
 import {
   ApiError,
   bootstrapApiSession,
   claimLegacyApiSession,
-  getRemoteProfile,
   issueRemoteRecovery,
   recoverRemote,
 } from "./yandex-api";
 
 const recoveryAlphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+let creatingSession: Promise<void> | undefined;
 
 function randomCrockford(length: number): string {
   const bytes = crypto.getRandomValues(new Uint8Array(length));
@@ -29,21 +30,23 @@ export function createRecoveryCode(): {
 }
 
 export async function ensureAnonymousSession(): Promise<void> {
-  try {
-    await getRemoteProfile();
-    return;
-  } catch (error) {
-    if (!(error instanceof ApiError) || error.status !== 401) throw error;
+  if (await getStoredApiSession()) return;
+  if (!creatingSession) {
+    creatingSession = (async () => {
+      // This bridge is temporary: it proves the existing Supabase access token
+      // server-side, then reuses the already imported opaque profile in YDB.
+      const { data: existing } = await supabase.auth.getSession();
+      if (existing.session) {
+        await claimLegacyApiSession(existing.session.user.id, existing.session.access_token);
+      } else {
+        await bootstrapApiSession();
+      }
+    })().catch((error) => {
+      creatingSession = undefined;
+      throw error;
+    });
   }
-
-  // This bridge is temporary: it proves the existing Supabase access token
-  // server-side, then reuses the already imported opaque profile in YDB.
-  const { data: existing } = await supabase.auth.getSession();
-  if (existing.session) {
-    await claimLegacyApiSession(existing.session.user.id, existing.session.access_token);
-    return;
-  }
-  await bootstrapApiSession();
+  await creatingSession;
 }
 
 /**

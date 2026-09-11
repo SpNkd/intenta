@@ -112,9 +112,23 @@ type Profile = {
   state_iv: string | null;
 };
 
+let profilePromise: Promise<Profile> | undefined;
+
+function resetProfileCache(): void {
+  profilePromise = undefined;
+}
+
 async function profile(): Promise<Profile> {
-  await ensureAnonymousSession();
-  return (await getRemoteProfile()) as Profile;
+  if (!profilePromise) {
+    profilePromise = (async () => {
+      await ensureAnonymousSession();
+      return (await getRemoteProfile()) as Profile;
+    })().catch((error) => {
+      profilePromise = undefined;
+      throw error;
+    });
+  }
+  return profilePromise;
 }
 
 export async function hasRecoveryCredential(): Promise<boolean> {
@@ -173,6 +187,7 @@ export async function issueRecovery(state: StaticState): Promise<string> {
   const encrypted = await encryptValue(state, recoveryKey);
   await putRemoteState(encrypted.ciphertext, encrypted.iv);
   await storeRecoveryContentKey(recoveryKey);
+  resetProfileCache();
   return recovery.code;
 }
 
@@ -185,6 +200,7 @@ export async function recover(code: string): Promise<StaticState> {
   const publicId = match[1].toUpperCase();
   const secret = match[2].toUpperCase();
   await recoverWithCode(publicId, secret);
+  resetProfileCache();
   await storeRecoveryContentKey(await deriveContentKey(secret, publicId));
   return loadState();
 }
